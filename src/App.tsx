@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Entry, Settings } from './types';
+import type { Entry, EntryType, Settings, StoredRecord, Todo } from './types';
 import { DEFAULT_SETTINGS } from './types';
 import * as db from './lib/db';
 import { applyToSeries, createEntries, newId, sortEntries, toggleChecked, type EntryDraft } from './lib/entries';
@@ -11,34 +11,45 @@ import { initSync, onRemoteData, useSyncStatus } from './lib/sync';
 import { DayView } from './views/DayView';
 import { WeekView } from './views/WeekView';
 import { MonthView } from './views/MonthView';
+import { TodoView } from './views/TodoView';
 import { PracticeView } from './views/PracticeView';
 import { SettingsView } from './views/SettingsView';
 import { EntrySheet, type Scope } from './components/EntrySheet';
+import { TodoSheet } from './components/TodoSheet';
 import { Icon, type IconName } from './components/Icon';
-import { Dialog, Toast } from './components/ui';
+import { Dialog, Segmented, Toast } from './components/ui';
+import { guessIcon } from './components/typeStyles';
 
-type Tab = 'day' | 'week' | 'month' | 'practice' | 'settings';
+type Tab = 'day' | 'todos' | 'calendar' | 'practice' | 'settings';
 
 const TABS: { id: Tab; label: string; icon: IconName }[] = [
   { id: 'day', label: 'Šiandien', icon: 'today' },
-  { id: 'week', label: 'Savaitė', icon: 'week' },
-  { id: 'month', label: 'Mėnuo', icon: 'month' },
+  { id: 'todos', label: 'Darbai', icon: 'inbox' },
+  { id: 'calendar', label: 'Kalendorius', icon: 'month' },
   { id: 'practice', label: 'Praktika', icon: 'practice' },
   { id: 'settings', label: 'Daugiau', icon: 'more' },
 ];
 
-type Editor = { entry: Entry } | { defaults: Partial<Entry> };
-type ToastState = { message: string; undo?: Entry[] };
+/** Redaguojamas įrašas arba naujas (fromTodo – kuriamas iš darbo; išsaugojus darbas pašalinamas). */
+type Editor = { entry: Entry } | { defaults: Partial<Entry>; fromTodo?: string };
+type TodoEditor = { todo?: Todo; defaultDue?: string };
+type ToastState = { message: string; undo?: StoredRecord[] };
+
+/** Įrašo tipas pagal darbo ikoną, kai darbas perkeliamas į laiko juostą. */
+const typeFromIcon = (icon?: string): EntryType =>
+  icon === 'book' ? 'lecture' : icon === 'briefcase' ? 'practice' : icon === 'cap' ? 'exam' : 'personal';
 
 export default function App() {
   const now = useNow();
   const [entries, setEntries] = useState<Entry[] | null>(null);
+  const [todos, setTodos] = useState<Todo[]>([]);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [tab, setTab] = useState<Tab>('day');
   const [dayDate, setDayDate] = useState(now.date);
   const [weekAnchor, setWeekAnchor] = useState(now.date);
   const [month, setMonth] = useState(startOfMonth(now.date));
   const [editor, setEditor] = useState<Editor | null>(null);
+  const [todoEditor, setTodoEditor] = useState<TodoEditor | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
   const [pendingMove, setPendingMove] = useState<{ entry: Entry; start: string; end: string } | null>(null);
@@ -46,7 +57,11 @@ export default function App() {
   useEffect(() => setHapticsEnabled(settings.haptics), [settings.haptics]);
   const syncStatus = useSyncStatus();
 
-  const reload = useCallback(async () => setEntries((await db.getAllEntries()).sort(sortEntries)), []);
+  const reload = useCallback(async () => {
+    const [e, t] = await Promise.all([db.getAllEntries(), db.getAllTodos()]);
+    setEntries(e.sort(sortEntries));
+    setTodos(t);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -69,6 +84,14 @@ export default function App() {
     setSettings(next);
     void db.saveSettings(next);
   };
+
+  const showToast = (t: ToastState) => {
+    clearTimeout(toastTimer.current);
+    setToast(t);
+    toastTimer.current = window.setTimeout(() => setToast(null), 5000);
+  };
+
+  // ---- tvarkaraščio įrašai ----
 
   const save = async (draft: EntryDraft, scope: Scope) => {
     const all = entries ?? [];
@@ -94,15 +117,11 @@ export default function App() {
       const same = all.filter((e) => e.title === draft.title && e.id !== draft.id && e.short !== draft.short);
       if (same.length) await db.putEntries(same.map((e) => ({ ...e, short: draft.short })));
     }
+    // Darbas perkeltas į laiko juostą – iš darbų sąrašo jis dingsta.
+    if (editor && 'fromTodo' in editor && editor.fromTodo && !original) await db.deleteEntries([editor.fromTodo]);
     haptic(15);
     setEditor(null);
     await reload();
-  };
-
-  const showToast = (t: ToastState) => {
-    clearTimeout(toastTimer.current);
-    setToast(t);
-    toastTimer.current = window.setTimeout(() => setToast(null), 5000);
   };
 
   const remove = async (entry: Entry, scope: Scope) => {
@@ -150,19 +169,74 @@ export default function App() {
     await reload();
   };
 
+  const nextSlot = () => fromMinutes(Math.min(22 * 60, Math.ceil((now.minutes + 1) / 30) * 30));
+
   const openNew = (date?: string, start?: string) => {
-    const s = start ?? fromMinutes(Math.min(22 * 60, Math.ceil((now.minutes + 1) / 30) * 30));
+    const s = start ?? nextSlot();
     const d = date ?? (tab === 'day' ? dayDate : now.date);
     setEditor({ defaults: { date: d, start: s, end: fromMinutes(Math.min(23 * 60 + 55, toMinutes(s) + 60)) } });
   };
+
+  // ---- darbai ----
+
+  const addTodo = (title: string) => {
+    const todo: Todo = { id: newId(), kind: 'todo', title, icon: guessIcon(title), createdAt: Date.now() };
+    setTodos((prev) => [...prev, todo]);
+    haptic(10);
+    void db.putEntries([todo]);
+  };
+
+  const saveTodo = async (todo: Todo) => {
+    await db.putEntries([todo]);
+    haptic(15);
+    setTodoEditor(null);
+    await reload();
+  };
+
+  const toggleTodo = (todo: Todo) => {
+    const next: Todo = { ...todo, done: !todo.done || undefined, doneAt: todo.done ? undefined : Date.now() };
+    setTodos((prev) => prev.map((t) => (t.id === todo.id ? next : t)));
+    void db.putEntries([next]);
+  };
+
+  const deleteTodos = async (list: Todo[]) => {
+    await db.deleteEntries(list.map((t) => t.id));
+    haptic(15);
+    setTodoEditor(null);
+    await reload();
+    showToast({ message: list.length === 1 ? 'Darbas ištrintas' : `Ištrinta darbų: ${list.length}`, undo: list });
+  };
+
+  /** Darbas → įrašas su laiku (atidaromas įrašo redaktorius). */
+  const scheduleTodo = (todo: Todo) => {
+    const s = nextSlot();
+    setTodoEditor(null);
+    setEditor({
+      defaults: {
+        title: todo.title,
+        icon: todo.icon,
+        note: todo.note,
+        type: typeFromIcon(todo.icon),
+        date: todo.due && todo.due >= now.date ? todo.due : now.date,
+        start: s,
+        end: fromMinutes(Math.min(23 * 60 + 55, toMinutes(s) + 60)),
+      },
+      // Jei darbas dar neišsaugotas (naujas), nėra ko trinti.
+      fromTodo: todos.some((t) => t.id === todo.id) ? todo.id : undefined,
+    });
+  };
+
+  // ---- navigacija ----
 
   const selectTab = (t: Tab) => {
     haptic(8);
     if (t === tab) {
       // Pakartotinis paspaudimas grąžina į šiandieną.
       if (t === 'day') setDayDate(now.date);
-      if (t === 'week') setWeekAnchor(now.date);
-      if (t === 'month') setMonth(startOfMonth(now.date));
+      if (t === 'calendar') {
+        setWeekAnchor(now.date);
+        setMonth(startOfMonth(now.date));
+      }
     }
     setTab(t);
     window.scrollTo({ top: 0 });
@@ -173,7 +247,22 @@ export default function App() {
   }
 
   const select = (e: Entry) => setEditor({ entry: e });
+  const openTodo = (t: Todo) => setTodoEditor({ todo: t });
   const tabLabel = (t: (typeof TABS)[number]) => (t.id === 'day' && dayDate !== now.date ? 'Diena' : t.label);
+  const dueCount = todos.filter((t) => !t.done && t.due && t.due <= now.date).length;
+
+  const calendarSwitcher = (
+    <div className="w-44">
+      <Segmented<'week' | 'month'>
+        value={settings.calendarView}
+        options={[
+          { value: 'week', label: 'Savaitė' },
+          { value: 'month', label: 'Mėnuo' },
+        ]}
+        onChange={(v) => updateSettings({ calendarView: v })}
+      />
+    </div>
+  );
 
   return (
     <div className="mx-auto min-h-dvh max-w-3xl pb-[calc(5rem+env(safe-area-inset-bottom))]">
@@ -188,9 +277,22 @@ export default function App() {
             onCreate={openNew}
             onMove={move}
             onToggle={toggleDone}
+            todos={todos}
+            onOpenTodo={openTodo}
+            onToggleTodo={toggleTodo}
           />
         )}
-        {tab === 'week' && (
+        {tab === 'todos' && (
+          <TodoView
+            todos={todos}
+            today={now.date}
+            onAdd={addTodo}
+            onOpen={openTodo}
+            onToggle={toggleTodo}
+            onClearDone={() => void deleteTodos(todos.filter((t) => t.done))}
+          />
+        )}
+        {tab === 'calendar' && settings.calendarView === 'week' && (
           <WeekView
             anchor={weekAnchor}
             setAnchor={setWeekAnchor}
@@ -200,14 +302,16 @@ export default function App() {
             now={now}
             onSelect={select}
             onCreate={openNew}
+            switcher={calendarSwitcher}
           />
         )}
-        {tab === 'month' && (
+        {tab === 'calendar' && settings.calendarView === 'month' && (
           <MonthView
             month={month}
             setMonth={setMonth}
             entries={entries}
             today={now.date}
+            switcher={calendarSwitcher}
             onOpenDay={(d) => {
               setDayDate(d);
               setTab('day');
@@ -220,9 +324,10 @@ export default function App() {
             settings={settings}
             updateSettings={updateSettings}
             entryCount={entries.length}
-            onExport={() => void downloadBackup(makeBackup(entries, settings))}
+            onExport={() => void downloadBackup(makeBackup(entries, todos, settings))}
             onImport={async (b: Backup) => {
               await db.replaceAllEntries(b.entries);
+              if (b.todos) await db.replaceAllEntries(b.todos, 'todo');
               updateSettings(b.settings);
               await reload();
             }}
@@ -237,10 +342,11 @@ export default function App() {
       {tab !== 'settings' && tab !== 'practice' && (
         <button
           type="button"
-          aria-label="Naujas įrašas"
+          aria-label={tab === 'todos' ? 'Naujas darbas' : 'Naujas įrašas'}
           onClick={() => {
             haptic(10);
-            openNew();
+            if (tab === 'todos') setTodoEditor({});
+            else openNew();
           }}
           className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-5 z-40 flex h-[60px] w-[60px] items-center justify-center rounded-full bg-accent-500 text-white shadow-xl shadow-accent-500/40 transition active:scale-90"
         >
@@ -269,6 +375,11 @@ export default function App() {
                 {t.id === 'settings' && syncStatus.state === 'error' && (
                   <span className="absolute right-3 top-1 h-2 w-2 rounded-full bg-red-500" aria-label="Sinchronizacijos klaida" />
                 )}
+                {t.id === 'todos' && dueCount > 0 && (
+                  <span className="absolute -top-0.5 right-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent-500 px-1 text-[10px] font-bold text-white">
+                    {dueCount}
+                  </span>
+                )}
               </span>
               {tabLabel(t)}
             </button>
@@ -276,7 +387,7 @@ export default function App() {
         </div>
       </nav>
 
-      {toast && !editor && <Toast message={toast.message} action={toast.undo && 'Atšaukti'} onAction={undoDelete} />}
+      {toast && !editor && !todoEditor && <Toast message={toast.message} action={toast.undo && 'Atšaukti'} onAction={undoDelete} />}
 
       {pendingMove && (
         <Dialog
@@ -315,6 +426,19 @@ export default function App() {
           onSave={save}
           onDelete={remove}
           onClose={() => setEditor(null)}
+        />
+      )}
+
+      {todoEditor && (
+        <TodoSheet
+          key={todoEditor.todo?.id ?? 'new'}
+          todo={todoEditor.todo}
+          today={now.date}
+          defaultDue={todoEditor.defaultDue}
+          onSave={saveTodo}
+          onDelete={(t) => void deleteTodos([t])}
+          onSchedule={scheduleTodo}
+          onClose={() => setTodoEditor(null)}
         />
       )}
     </div>

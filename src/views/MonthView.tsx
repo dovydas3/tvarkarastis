@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { Entry, EntryType } from '../types';
 import { TYPE_LABELS } from '../types';
 import { addDays, addMonths, daysInMonth, MONTHS, parseDate, startOfMonth, WEEKDAYS_SHORT, weekdayIndex } from '../lib/dates';
@@ -11,9 +12,10 @@ interface Props {
   entries: Entry[];
   today: string;
   onOpenDay: (d: string) => void;
+  switcher?: ReactNode;
 }
 
-export function MonthView({ month, setMonth, entries, today, onOpenDay }: Props) {
+export function MonthView({ month, setMonth, entries, today, onOpenDay, switcher }: Props) {
   const prev = () => setMonth(addMonths(month, -1));
   const next = () => setMonth(addMonths(month, 1));
   const swipe = useSwipe(prev, next);
@@ -44,7 +46,9 @@ export function MonthView({ month, setMonth, entries, today, onOpenDay }: Props)
         onPrev={prev}
         onNext={next}
         right={!today.startsWith(first.slice(0, 7)) && <PillButton onClick={() => setMonth(startOfMonth(today))}>Šiandien</PillButton>}
-      />
+      >
+        {switcher && <div className="px-4 pb-2">{switcher}</div>}
+      </ViewHeader>
       <div key={first} className={`px-3 pt-2 ${slide}`}>
         <div className="grid grid-cols-7 text-center text-[11px] font-semibold text-neutral-400">
           {WEEKDAYS_SHORT.map((d) => (

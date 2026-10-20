@@ -10,7 +10,7 @@ import { conflictingIds, dragTimes, isChecked, noteDetails, sortEntries, type Dr
 import { useLongPressDrag } from '../lib/useLongPressDrag';
 import { haptic } from '../lib/hooks';
 import { Icon } from './Icon';
-import { RING_CLASSES, SOLID_CLASSES, TYPE_ICON } from './typeStyles';
+import { entryIcon, RING_CLASSES, SOLID_CLASSES } from './typeStyles';
 
 interface Props {
   date: string;
@@ -172,7 +172,7 @@ export function DayTimeline({ date, entries, now, onSelect, onCreate, onMove, on
                 {progress > 0 && (
                   <span className="absolute inset-x-0 top-0 bg-white/30" style={{ height: `${progress * 100}%` }} />
                 )}
-                <Icon name={TYPE_ICON[e.type]} className="relative h-5 w-5" strokeWidth={2.2} />
+                <Icon name={entryIcon(e)} className="relative h-5 w-5" strokeWidth={2.2} />
                 {/* Apačia – trukmės keitimas */}
                 <span
                   {...bind(e.id, 'resize')}

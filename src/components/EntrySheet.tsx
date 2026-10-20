@@ -6,7 +6,8 @@ import { findConflicts, shortTitle, weeklyDates, type EntryDraft } from '../lib/
 import { haptic } from '../lib/hooks';
 import { Dialog, Segmented, Switch, TimeSelect } from './ui';
 import { Icon, type IconName } from './Icon';
-import { SOFT_CLASSES, SOLID_CLASSES, TYPE_ICON, TYPE_ORDER } from './typeStyles';
+import { guessIcon, SOFT_CLASSES, SOLID_CLASSES, TYPE_ICON, TYPE_ORDER } from './typeStyles';
+import { IconPicker } from './IconPicker';
 
 export type Scope = 'one' | 'all';
 
@@ -49,6 +50,11 @@ export function EntrySheet({ entry, defaults, entries, onSave, onDelete, onClose
   const [status, setStatus] = useState<PracticeStatus>(init.status ?? 'auto');
   const [actual, setActual] = useState(init.actualHours?.toString() ?? '');
   const [ask, setAsk] = useState<null | 'save' | 'delete'>(null);
+  const [icon, setIcon] = useState<string | undefined>(init.icon);
+  const [showIcons, setShowIcons] = useState(false);
+  // Asmeniniams / kitiems įrašams ikona spėjama pagal pavadinimą (pvz. „Sporto salė“ → hantelis).
+  const guessed = type === 'personal' || type === 'other' ? guessIcon(title) : undefined;
+  const shownIcon = (icon ?? guessed ?? TYPE_ICON[type]) as IconName;
 
   const inSeries = Boolean(entry?.seriesId);
   const duration = toMinutes(end) - toMinutes(start);
@@ -58,6 +64,7 @@ export function EntrySheet({ entry, defaults, entries, onSave, onDelete, onClose
     id: entry?.id,
     title: title.trim() || TYPE_LABELS[type],
     short: short.trim() || undefined,
+    icon: icon ?? guessed,
     type,
     date,
     start,
@@ -118,9 +125,14 @@ export function EntrySheet({ entry, defaults, entries, onSave, onDelete, onClose
         <div className="space-y-4 px-4 pb-6 pt-2">
           {/* Ikona + pavadinimas */}
           <div className="flex items-center gap-3">
-            <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-white shadow-sm ${SOLID_CLASSES[type]}`}>
-              <Icon name={TYPE_ICON[type]} className="h-6 w-6" strokeWidth={2.2} />
-            </span>
+            <button
+              type="button"
+              onClick={() => setShowIcons((v) => !v)}
+              aria-label="Pasirinkti ikoną"
+              className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-white shadow-sm ${SOLID_CLASSES[type]}`}
+            >
+              <Icon name={shownIcon} className="h-6 w-6" strokeWidth={2.2} />
+            </button>
             <input
               className="min-w-0 flex-1 bg-transparent text-[22px] font-bold outline-none placeholder:text-neutral-300 dark:placeholder:text-neutral-700"
               placeholder={TYPE_LABELS[type]}
@@ -150,6 +162,30 @@ export function EntrySheet({ entry, defaults, entries, onSave, onDelete, onClose
                 {TYPE_LABELS[t]}
               </button>
             ))}
+          </div>
+
+          {/* Ikona */}
+          <div className="rounded-3xl bg-neutral-100/80 p-3 dark:bg-neutral-900">
+            <button
+              type="button"
+              className="flex w-full items-center gap-3 px-1 text-[15px]"
+              onClick={() => setShowIcons((v) => !v)}
+            >
+              <Icon name={shownIcon} className="h-5 w-5 text-neutral-400" />
+              Ikona
+              <span className="ml-auto text-xs text-neutral-500">{showIcons ? 'Slėpti' : 'Keisti'}</span>
+            </button>
+            {showIcons && (
+              <div className="mt-3">
+                <IconPicker
+                  value={shownIcon}
+                  onChange={(i) => {
+                    setIcon(i);
+                    setShowIcons(false);
+                  }}
+                />
+              </div>
+            )}
           </div>
 
           {/* Kada */}

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { Entry, Settings } from '../types';
 import { addDays, formatDayMonth, formatHours, startOfWeek, WEEKDAYS_SHORT, weekdayIndex } from '../lib/dates';
 import { countedHours } from '../lib/entries';
@@ -14,11 +15,13 @@ interface Props {
   now: { date: string; minutes: number };
   onSelect: (e: Entry) => void;
   onCreate: (date: string, start: string) => void;
+  /** Savaitė / Mėnuo perjungiklis */
+  switcher?: ReactNode;
 }
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-export function WeekView({ anchor, setAnchor, settings, updateSettings, entries, now, onSelect, onCreate }: Props) {
+export function WeekView({ anchor, setAnchor, settings, updateSettings, entries, now, onSelect, onCreate, switcher }: Props) {
   const first = startOfWeek(anchor);
   const count = settings.showWeekend ? 7 : 5;
   const days = Array.from({ length: count }, (_, i) => addDays(first, i));
@@ -48,9 +51,10 @@ export function WeekView({ anchor, setAnchor, settings, updateSettings, entries,
         onPrev={prev}
         onNext={next}
       >
-        <div className="flex gap-2 px-4 pb-2">
+        <div className="flex flex-wrap items-center gap-2 px-4 pb-2">
+          {switcher}
           <PillButton active={settings.showWeekend} onClick={() => updateSettings({ showWeekend: !settings.showWeekend })}>
-            Su savaitgaliu
+            Št–Sk
           </PillButton>
           {!thisWeek && <PillButton onClick={() => setAnchor(now.date)}>Ši savaitė</PillButton>}
         </div>

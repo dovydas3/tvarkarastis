@@ -1,4 +1,4 @@
-import type { Entry, EntryType, Settings } from '../types';
+import type { Entry, EntryType, Settings, Todo } from '../types';
 import { DEFAULT_SETTINGS } from '../types';
 
 export interface Backup {
@@ -6,15 +6,18 @@ export interface Backup {
   version: 1;
   exportedAt: string;
   entries: Entry[];
+  /** Darbų sąrašas (senesnėse kopijose nėra) */
+  todos?: Todo[];
   settings: Settings;
 }
 
-export function makeBackup(entries: Entry[], settings: Settings): Backup {
+export function makeBackup(entries: Entry[], todos: Todo[], settings: Settings): Backup {
   const clean = entries.map(({ dirty: _d, deleted: _x, ...e }) => e);
-  return { app: 'tvarkarastis', version: 1, exportedAt: new Date().toISOString(), entries: clean, settings };
+  const cleanTodos = todos.map(({ dirty: _d, deleted: _x, ...t }) => t);
+  return { app: 'tvarkarastis', version: 1, exportedAt: new Date().toISOString(), entries: clean, todos: cleanTodos, settings };
 }
 
-const TYPES: EntryType[] = ['lecture', 'practice', 'personal', 'other'];
+const TYPES: EntryType[] = ['lecture', 'practice', 'exam', 'personal', 'other'];
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME = /^\d{2}:\d{2}$/;
 
@@ -39,11 +42,16 @@ export function parseBackup(text: string): Backup {
     )
       throw new Error(`Netinkamas įrašas Nr. ${i + 1}.`);
   });
+  const todos = Array.isArray(b.todos) ? b.todos : undefined;
+  todos?.forEach((t, i) => {
+    if (typeof t?.id !== 'string' || typeof t.title !== 'string' || t.kind !== 'todo') throw new Error(`Netinkamas darbas Nr. ${i + 1}.`);
+  });
   return {
     app: 'tvarkarastis',
     version: 1,
     exportedAt: b.exportedAt ?? '',
     entries: b.entries,
+    todos,
     settings: { ...DEFAULT_SETTINGS, ...b.settings },
   };
 }

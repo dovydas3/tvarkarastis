@@ -132,6 +132,16 @@ export function formatHours(h: number): string {
   return r.toLocaleString('lt-LT', { maximumFractionDigits: 2 });
 }
 
+/** Termino etiketė darbams: „Šiandien“, „Rytoj“, „Vėluoja 2 d.“, „Pn, lapkričio 20 d.“ */
+export function dueLabel(due: string, today: string): string {
+  const d = diffDays(due, today);
+  if (d === 0) return 'Šiandien';
+  if (d === 1) return 'Rytoj';
+  if (d === -1) return 'Vėluoja (vakar)';
+  if (d < 0) return `Vėluoja ${-d} d.`;
+  return `${WEEKDAYS_SHORT[weekdayIndex(due)]}, ${formatDayMonth(due)}`;
+}
+
 /** Trukmė: „45 min.“, „2 val.“, „1 val. 30 min.“ */
 export function formatDuration(minutes: number): string {
   const h = Math.floor(minutes / 60);

@@ -1,4 +1,4 @@
-export type EntryType = 'lecture' | 'practice' | 'personal' | 'other';
+export type EntryType = 'lecture' | 'practice' | 'exam' | 'personal' | 'other';
 
 /** Praktikos bloko būsena. 'auto' – laikoma įvykusia, kai blokas pasibaigia. */
 export type PracticeStatus = 'auto' | 'done' | 'missed';
@@ -9,6 +9,10 @@ export interface Entry {
   /** Trumpinys siauriems stulpeliams (savaitės vaizdas); jei nėra – sugeneruojamas. */
   short?: string;
   type: EntryType;
+  /** Pasirinkta ikona (Icon pavadinimas); jei nėra – pagal tipą. */
+  icon?: string;
+  /** Visada undefined įrašams (skiria nuo darbų toje pačioje saugykloje). */
+  kind?: undefined;
   /** Vietinė (Europe/Vilnius) data, YYYY-MM-DD */
   date: string;
   /** HH:mm, 24 val. */
@@ -33,12 +37,41 @@ export interface Entry {
   dirty?: 1;
 }
 
+/**
+ * Darbas be laiko („Inbox“). Saugomas toje pačioje saugykloje ir sinchronizuojamas
+ * kartu su įrašais; skiriamas pagal kind = 'todo'.
+ */
+export interface Todo {
+  id: string;
+  kind: 'todo';
+  title: string;
+  /** Ikona (Icon pavadinimas) */
+  icon?: string;
+  /** Iki kada (YYYY-MM-DD), neprivaloma */
+  due?: string;
+  note?: string;
+  done?: boolean;
+  /** Kada pažymėta atlikta (ms) */
+  doneAt?: number;
+  createdAt: number;
+  updatedAt?: number;
+  deleted?: boolean;
+  dirty?: 1;
+}
+
+/** Viskas, kas saugoma vietinėje DB ir sinchronizuojama. */
+export type StoredRecord = Entry | Todo;
+
+export const isTodo = (r: StoredRecord): r is Todo => r.kind === 'todo';
+
 export interface Settings {
   showWeekend: boolean;
   notifications: boolean;
   notifyMinutes: number;
   /** Lengva vibracija paspaudus (veikia Android; iOS naršyklės to neleidžia). */
   haptics: boolean;
+  /** Kalendoriaus skiltyje rodomas vaizdas */
+  calendarView: 'week' | 'month';
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -46,11 +79,13 @@ export const DEFAULT_SETTINGS: Settings = {
   notifications: false,
   notifyMinutes: 15,
   haptics: true,
+  calendarView: 'week',
 };
 
 export const TYPE_LABELS: Record<EntryType, string> = {
   lecture: 'Paskaita',
   practice: 'Praktika',
+  exam: 'Atsiskaitymas',
   personal: 'Asmeninis',
   other: 'Kita',
 };

@@ -1,4 +1,4 @@
-import type { Entry, EntryType } from '../types';
+import type { Entry, EntryType, Todo } from '../types';
 import {
   addDays,
   diffDays,
@@ -16,7 +16,8 @@ import { haptic, useSlideClass, useSwipe } from '../lib/hooks';
 import { DayTimeline } from '../components/DayTimeline';
 import { Icon } from '../components/Icon';
 import { PillButton, ViewHeader } from '../components/ui';
-import { DOT_CLASSES, TYPE_ICON, TYPE_ORDER } from '../components/typeStyles';
+import { DOT_CLASSES, entryIcon, TYPE_ORDER } from '../components/typeStyles';
+import { TodoRow } from '../components/TodoRow';
 
 interface Props {
   date: string;
@@ -27,6 +28,9 @@ interface Props {
   onCreate: (date: string, start: string) => void;
   onMove: (e: Entry, start: string, end: string) => void;
   onToggle: (e: Entry) => void;
+  todos: Todo[];
+  onOpenTodo: (t: Todo) => void;
+  onToggleTodo: (t: Todo) => void;
 }
 
 /** „Spalio 20“ */
@@ -35,7 +39,7 @@ const bigDate = (d: string) => {
   return m.charAt(0).toUpperCase() + m.slice(1);
 };
 
-export function DayView({ date, setDate, entries, now, onSelect, onCreate, onMove, onToggle }: Props) {
+export function DayView({ date, setDate, entries, now, onSelect, onCreate, onMove, onToggle, todos, onOpenTodo, onToggleTodo }: Props) {
   const slide = useSlideClass(date);
   const swipe = useSwipe(
     () => setDate(addDays(date, -1)),
@@ -65,6 +69,8 @@ export function DayView({ date, setDate, entries, now, onSelect, onCreate, onMov
       </ViewHeader>
       <div key={date} className={slide}>
         {isToday && <NextLine entries={entries} now={now} onSelect={onSelect} />}
+        {isToday && <ExamCountdown entries={entries} today={now.date} onSelect={onSelect} />}
+        <DayTodos date={date} today={now.date} todos={todos} onOpen={onOpenTodo} onToggle={onToggleTodo} />
         <DaySummary entries={entries.filter((e) => e.date === date)} />
         <DayTimeline
           date={date}
@@ -189,12 +195,81 @@ function NextLine({
         onClick={() => onSelect(next)}
         className="flex w-full items-center gap-3 rounded-2xl bg-accent-50 px-3.5 py-2.5 text-left dark:bg-accent-500/10"
       >
-        <Icon name={TYPE_ICON[next.type]} className="h-4 w-4 shrink-0 text-accent-500" strokeWidth={2.4} />
+        <Icon name={entryIcon(next)} className="h-4 w-4 shrink-0 text-accent-500" strokeWidth={2.4} />
         <span className="min-w-0 flex-1 truncate text-sm">
           <b>Kitas:</b> {next.title} {when}
         </span>
         <span className="shrink-0 text-xs font-bold text-accent-600 dark:text-accent-300">{formatIn(mins)}</span>
       </button>
+    </div>
+  );
+}
+
+/** Darbai šiai dienai (šiandien – ir vėluojantys), su varnelėmis. Ką tik pažymėti lieka matomi iki kito atidarymo. */
+function DayTodos({
+  date,
+  today,
+  todos,
+  onOpen,
+  onToggle,
+}: {
+  date: string;
+  today: string;
+  todos: Todo[];
+  onOpen: (t: Todo) => void;
+  onToggle: (t: Todo) => void;
+}) {
+  const items = todos
+    .filter((t) => t.due && (t.due === date || (date === today && t.due < today && !t.done)))
+    .filter((t) => !t.done || t.due === date)
+    .sort((a, b) => Number(!!a.done) - Number(!!b.done) || (a.due ?? '').localeCompare(b.due ?? '') || a.createdAt - b.createdAt);
+  if (!items.length) return null;
+  const left = items.filter((t) => !t.done).length;
+  return (
+    <section className="mx-4 mt-3 rounded-3xl bg-neutral-50 px-3 py-2 dark:bg-neutral-900">
+      <h2 className="flex items-center gap-2 px-1 pt-1 text-xs font-bold uppercase tracking-wider text-neutral-400">
+        <Icon name="inbox" className="h-4 w-4" strokeWidth={2.4} />
+        Darbai {left ? `· liko ${left}` : '· viskas atlikta ✓'}
+      </h2>
+      <ul className="divide-y divide-neutral-200/60 dark:divide-neutral-800">
+        {items.map((t) => (
+          <TodoRow key={t.id} todo={t} today={today} onOpen={onOpen} onToggle={onToggle} />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** Artimiausi atsiskaitymai (per 30 d.) su atgaline atskaita. */
+function ExamCountdown({ entries, today, onSelect }: { entries: Entry[]; today: string; onSelect: (e: Entry) => void }) {
+  const exams = entries
+    .filter((e) => e.type === 'exam' && !e.done && e.date >= today && diffDays(e.date, today) <= 30)
+    .slice(0, 3);
+  if (!exams.length) return null;
+  return (
+    <div className="-mx-0 flex gap-2 overflow-x-auto px-4 pt-3">
+      {exams.map((e) => {
+        const d = diffDays(e.date, today);
+        return (
+          <button
+            key={e.id}
+            type="button"
+            onClick={() => onSelect(e)}
+            className="flex min-w-[46%] shrink-0 items-center gap-3 rounded-2xl bg-rose-50 px-3 py-2.5 text-left dark:bg-rose-500/10"
+          >
+            <span className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-full bg-rose-500 text-white">
+              <span className="text-base font-bold leading-none">{d === 0 ? '!' : d}</span>
+              {d > 0 && <span className="text-[9px] font-semibold leading-none">d.</span>}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-[11px] font-bold uppercase tracking-wide text-rose-500">
+                {d === 0 ? `Šiandien ${e.start}` : d === 1 ? 'Rytoj' : `Po ${d} d.`}
+              </span>
+              <span className="block truncate text-sm font-semibold">{e.title}</span>
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }

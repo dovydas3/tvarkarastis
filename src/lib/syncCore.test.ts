@@ -54,7 +54,7 @@ function memDevice(seed: Entry[] = []) {
       for (const r of rows) {
         const next = mergeRemote(store.get(r.id), r);
         if (next) {
-          store.set(r.id, next);
+          store.set(r.id, next as Entry);
           n++;
         }
       }
@@ -121,7 +121,7 @@ describe('sinchronizacija tarp dviejų įrenginių', () => {
     await runSync(pc.local, server);
     expect(phone.get('a')?.start).toBe('20:00');
     expect(pc.get('a')?.start).toBe('20:00');
-    expect(server.rows.get('a')?.data.start).toBe('20:00');
+    expect((server.rows.get('a')?.data as Entry).start).toBe('20:00');
   });
 
   it('ištrynimas pasiekia kitą įrenginį, o senesnis pakeitimas jo neatgaivina', async () => {
@@ -185,7 +185,7 @@ describe('sinchronizacija tarp dviejų įrenginių', () => {
     server.push = realPush;
     expect(phone.get('a')?.dirty).toBe(1);
     await runSync(phone.local, server);
-    expect(server.rows.get('a')?.data.start).toBe('07:00');
+    expect((server.rows.get('a')?.data as Entry).start).toBe('07:00');
     expect(phone.get('a')?.dirty).toBeUndefined();
   });
 
@@ -201,6 +201,26 @@ describe('sinchronizacija tarp dviejų įrenginių', () => {
     expect(pc.visible()).toHaveLength(1234);
     // antras kartas – nieko naujo (tik persidengimo langas, be pakeitimų)
     expect((await runSync(pc.local, server)).changed).toBe(0);
+  });
+
+  it('darbai (todo) sinchronizuojami kartu su įrašais, varnelė ir ištrynimas keliauja', async () => {
+    const server = memServer();
+    const phone = memDevice();
+    const pc = memDevice();
+    const todo = { id: 't1', kind: 'todo' as const, title: 'Nupirkti pieno', icon: 'cart', createdAt: 1 };
+    phone.put(todo as unknown as Entry);
+    await runSync(phone.local, server);
+    await runSync(pc.local, server);
+    expect(pc.get('t1')?.title).toBe('Nupirkti pieno');
+    expect((pc.get('t1') as unknown as { kind: string }).kind).toBe('todo');
+    pc.put({ ...pc.get('t1')!, done: true });
+    await runSync(pc.local, server);
+    await runSync(phone.local, server);
+    expect(phone.get('t1')?.done).toBe(true);
+    phone.remove('t1');
+    await runSync(phone.local, server);
+    await runSync(pc.local, server);
+    expect(pc.get('t1')).toBeUndefined();
   });
 
   it('į debesį nesiunčiama vietinė žymė dirty', async () => {
@@ -224,7 +244,7 @@ describe('pagalbinės funkcijos', () => {
     const row = (ts: number): RemoteRow => ({ id: 'a', data: entry('a', { start: '08:00' }), updated_at: ts, deleted: false });
     expect(mergeRemote(local, row(10))).toBeNull();
     expect(mergeRemote(local, row(9))).toBeNull();
-    expect(mergeRemote(local, row(11))?.start).toBe('08:00');
+    expect((mergeRemote(local, row(11)) as Entry).start).toBe('08:00');
     expect(mergeRemote(undefined, { ...row(1), deleted: true })?.deleted).toBe(true);
   });
 });

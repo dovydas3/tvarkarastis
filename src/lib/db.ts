@@ -1,11 +1,12 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { Entry, Settings } from '../types';
-import { DEFAULT_SETTINGS } from '../types';
+import type { Entry, Settings, StoredRecord, Todo } from '../types';
+import { DEFAULT_SETTINGS, isTodo } from '../types';
 import { generateLectureEntries, generateSeedEntries, SEED_VERSION } from '../data/seed';
 import { mergeRemote, sameContent, type LocalStore, type RemoteRow } from './syncCore';
 
 interface ScheduleDB extends DBSchema {
-  entries: { key: string; value: Entry; indexes: { date: string; seriesId: string } };
+  /** Tvarkaraščio įrašai ir darbai (kind = 'todo') vienoje saugykloje – sinchronizuojami kartu. */
+  entries: { key: string; value: StoredRecord; indexes: { date: string; seriesId: string } };
   meta: { key: string; value: unknown };
 }
 
@@ -30,13 +31,18 @@ export const setChangeListener = (fn: (() => void) | null) => {
 };
 const changed = () => changeListener?.();
 
-/** Matomi (neištrinti) įrašai. */
+/** Matomi (neištrinti) tvarkaraščio įrašai (be darbų). */
 export async function getAllEntries(): Promise<Entry[]> {
-  return (await (await db()).getAll('entries')).filter((e) => !e.deleted);
+  return (await (await db()).getAll('entries')).filter((e): e is Entry => !e.deleted && !isTodo(e));
 }
 
-/** Įrašo pakeitimus: pažymi laiku ir kaip neišsiųstus. */
-export async function putEntries(entries: Entry[]): Promise<void> {
+/** Matomi (neištrinti) darbai. */
+export async function getAllTodos(): Promise<Todo[]> {
+  return (await (await db()).getAll('entries')).filter((e): e is Todo => !e.deleted && isTodo(e));
+}
+
+/** Įrašo pakeitimus (įrašus ar darbus): pažymi laiku ir kaip neišsiųstus. */
+export async function putEntries(entries: StoredRecord[]): Promise<void> {
   if (!entries.length) return;
   const now = Date.now();
   const tx = (await db()).transaction('entries', 'readwrite');
@@ -57,12 +63,16 @@ export async function deleteEntries(ids: string[]): Promise<void> {
   changed();
 }
 
-/** Pakeičia visus įrašus (importas, pradinio grafiko atstatymas). Kiti įrašai pažymimi ištrintais. */
-export async function replaceAllEntries(entries: Entry[]): Promise<void> {
+/**
+ * Pakeičia visus tos pačios rūšies įrašus (importas, pradinio grafiko atstatymas):
+ * kiti tos rūšies įrašai pažymimi ištrintais, kitos rūšies (pvz. darbai) – neliečiami.
+ */
+export async function replaceAllEntries(entries: StoredRecord[], kind: 'entry' | 'todo' = 'entry'): Promise<void> {
   const now = Date.now();
   const keep = new Set(entries.map((e) => e.id));
   const tx = (await db()).transaction('entries', 'readwrite');
   for (const e of await tx.store.getAll()) {
+    if ((kind === 'todo') !== isTodo(e)) continue;
     if (!keep.has(e.id) && !e.deleted) await tx.store.put({ ...e, deleted: true, updatedAt: now, dirty: 1 });
   }
   for (const e of entries) await tx.store.put({ ...e, deleted: undefined, updatedAt: now, dirty: 1 });
@@ -124,6 +134,7 @@ async function migrateLecturesV2(): Promise<void> {
   const all = await tx.store.getAll();
   const kept = new Set<string>();
   for (const e of all) {
+    if (isTodo(e)) continue;
     if (e.source !== 'seed' || e.type !== 'lecture') continue;
     if (e.title === 'Paskaita' && !e.note) await tx.store.delete(e.id);
     else kept.add(e.id);

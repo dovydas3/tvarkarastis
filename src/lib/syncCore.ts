@@ -7,11 +7,11 @@
 //   (pagal serverio laiką), ir pritaikomos, jei naujesnės už vietines;
 // - ištrynimai keliauja kaip žymės deleted = true.
 
-import type { Entry } from '../types';
+import type { StoredRecord } from '../types';
 
 export interface RemoteRow {
   id: string;
-  data: Entry;
+  data: StoredRecord;
   updated_at: number;
   deleted: boolean;
 }
@@ -23,7 +23,7 @@ export interface PulledRow extends RemoteRow {
 
 /** Vietinė saugykla (IndexedDB programoje, atmintis testuose). */
 export interface LocalStore {
-  getDirty(): Promise<Entry[]>;
+  getDirty(): Promise<StoredRecord[]>;
   /** Nuima dirty žymę, jei įrašas nuo išsiuntimo nepasikeitė (updatedAt sutampa). */
   markClean(sent: { id: string; updatedAt: number }[]): Promise<void>;
   /** Pritaiko parsiųstas eilutes; grąžina, kiek vietinių įrašų pasikeitė. */
@@ -40,12 +40,12 @@ export interface RemoteApi {
 }
 
 /** Laukai, kurie egzistuoja tik šiame įrenginyje ir į debesį nesiunčiami. */
-export function stripLocal(e: Entry): Entry {
+export function stripLocal(e: StoredRecord): StoredRecord {
   const { dirty: _d, ...rest } = e;
   return rest;
 }
 
-export function toRemote(e: Entry): RemoteRow {
+export function toRemote(e: StoredRecord): RemoteRow {
   const data = stripLocal(e);
   return { id: e.id, data, updated_at: e.updatedAt ?? 0, deleted: Boolean(e.deleted) };
 }
@@ -54,7 +54,7 @@ export function toRemote(e: Entry): RemoteRow {
  * Ką padaryti su parsiųsta eilute: grąžina naują vietinį įrašą arba null (palikti vietinį).
  * Laimi naujesnis updatedAt; vienodam – vietinis paliekamas (jis jau toks pat arba bus išsiųstas).
  */
-export function mergeRemote(local: Entry | undefined, row: RemoteRow): Entry | null {
+export function mergeRemote(local: StoredRecord | undefined, row: RemoteRow): StoredRecord | null {
   const localTs = local?.updatedAt ?? 0;
   if (local && row.updated_at <= localTs) return null;
   return { ...row.data, id: row.id, updatedAt: row.updated_at, deleted: row.deleted || undefined };
@@ -63,8 +63,8 @@ export function mergeRemote(local: Entry | undefined, row: RemoteRow): Entry | n
 const CONTENT_IGNORED = new Set(['updatedAt', 'dirty', 'deleted']);
 
 /** Ar du įrašai vienodi turiniu (neskaitant sinchronizacijos laukų ir undefined reikšmių). */
-export function sameContent(a: Entry, b: Entry): boolean {
-  const norm = (e: Entry) =>
+export function sameContent(a: StoredRecord, b: StoredRecord): boolean {
+  const norm = (e: StoredRecord) =>
     JSON.stringify(
       Object.keys(e)
         .filter((k) => !CONTENT_IGNORED.has(k) && (e as unknown as Record<string, unknown>)[k] !== undefined)
