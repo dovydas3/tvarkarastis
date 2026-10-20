@@ -2,11 +2,10 @@ import { useEffect, useState } from 'react';
 import {
   clearDeviceConfig,
   saveConfig,
-  sendCode,
+  signIn,
   signOut,
   syncNow,
   useSyncStatus,
-  verifyCode,
   type SyncStatus,
 } from '../lib/sync';
 import { haptic } from '../lib/hooks';
@@ -49,8 +48,7 @@ export function SyncSection() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
-  const [codeSent, setCodeSent] = useState(false);
+  const [password, setPassword] = useState('');
   const [showConfig, setShowConfig] = useState(false);
   const [url, setUrl] = useState('');
   const [key, setKey] = useState('');
@@ -102,8 +100,8 @@ export function SyncSection() {
       {status.state === 'unconfigured' && (
         <>
           <p className="text-sm text-slate-500">
-            Kad duomenys sutaptų telefone ir kompiuteryje, reikia nemokamo Supabase projekto (žr. README, „Sinchronizacija“). Įvesk
-            jo adresą ir raktą:
+            Kad duomenys sutaptų telefone ir kompiuteryje, reikia nemokamo Supabase projekto. Įvesk jo adresą (Project URL) ir
+            „anon“ / „publishable“ raktą:
           </p>
           {configForm}
         </>
@@ -112,68 +110,41 @@ export function SyncSection() {
       {status.state === 'signed-out' && (
         <>
           <p className="text-sm text-slate-500">
-            Prisijunk tuo pačiu el. paštu visuose įrenginiuose. Gausi kodą el. paštu – įvesk jį čia.
+            Prisijunk tuo pačiu el. paštu ir slaptažodžiu visuose įrenginiuose. Vartotoją sukuri Supabase skydelyje: Authentication → Users → Add user.
           </p>
-          {!codeSent ? (
-            <form
-              className="space-y-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void run(async () => {
-                  await sendCode(email);
-                  setCodeSent(true);
-                });
-              }}
-            >
-              <input
-                className="field"
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                placeholder="tavo@pastas.lt"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              <button type="submit" className="btn-primary w-full" disabled={busy}>
-                {busy ? 'Siunčiama…' : 'Siųsti kodą'}
-              </button>
-            </form>
-          ) : (
-            <form
-              className="space-y-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void run(async () => {
-                  await verifyCode(email, code);
-                  setCode('');
-                  setCodeSent(false);
-                });
-              }}
-            >
-              <p className="text-sm">
-                Kodas išsiųstas į <b>{email}</b>.
-              </p>
-              <input
-                className="field text-center text-2xl tracking-[0.4em] tabular-nums"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                pattern="[0-9]{6,10}"
-                maxLength={10}
-                placeholder="••••••"
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-                required
-                autoFocus
-              />
-              <button type="submit" className="btn-primary w-full" disabled={busy || code.length < 6}>
-                {busy ? 'Tikrinama…' : 'Prisijungti'}
-              </button>
-              <button type="button" className="btn w-full text-sm text-slate-500" onClick={() => setCodeSent(false)}>
-                Kitas el. paštas / siųsti iš naujo
-              </button>
-            </form>
-          )}
+          <form
+            className="space-y-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void run(async () => {
+                await signIn(email, password);
+                setPassword('');
+              });
+            }}
+          >
+            <input
+              className="field"
+              type="email"
+              inputMode="email"
+              autoComplete="username"
+              placeholder="tavo@pastas.lt"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            <input
+              className="field"
+              type="password"
+              autoComplete="current-password"
+              placeholder="Slaptažodis"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            <button type="submit" className="btn-primary w-full" disabled={busy}>
+              {busy ? 'Jungiamasi…' : 'Prisijungti'}
+            </button>
+          </form>
         </>
       )}
 

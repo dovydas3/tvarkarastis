@@ -123,18 +123,15 @@ export async function clearDeviceConfig(): Promise<void> {
   await connect();
 }
 
-// ---- prisijungimas kodu --------------------------------------------------
+// ---- prisijungimas -------------------------------------------------------
 
-/** Išsiunčia vienkartinį kodą el. paštu (be nuorodos – ji iPhone atsidarytų Safari, ne programėlėje). */
-export async function sendCode(email: string): Promise<void> {
+/**
+ * Prisijungimas el. paštu ir slaptažodžiu. Vartotojas sukuriamas Supabase skydelyje
+ * (Authentication → Users → Add user, „Auto Confirm User“), todėl laiškų siųsti nereikia.
+ */
+export async function signIn(email: string, password: string): Promise<void> {
   if (!client) throw new Error('Sinchronizacija nesukonfigūruota.');
-  const { error } = await client.auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: true } });
-  if (error) throw new Error(friendlyError(error));
-}
-
-export async function verifyCode(email: string, code: string): Promise<void> {
-  if (!client) throw new Error('Sinchronizacija nesukonfigūruota.');
-  const { data, error } = await client.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'email' });
+  const { data, error } = await client.auth.signInWithPassword({ email: email.trim(), password });
   if (error) throw new Error(friendlyError(error));
   // Nauja paskyra / įrenginys – parsisiunčiam viską iš naujo.
   await db.setMeta('syncCursor', undefined);
@@ -222,8 +219,9 @@ function friendlyError(e: unknown): string {
     return 'Duomenų bazėje nėra lentelės „entries“. Paleisk supabase/schema.sql Supabase SQL redaktoriuje.';
   if (err.code === 'PGRST202' || /push_entries/i.test(msg))
     return 'Nerasta funkcija push_entries. Paleisk supabase/schema.sql Supabase SQL redaktoriuje.';
-  if (/token has expired|invalid.*otp|otp.*invalid|token.*invalid/i.test(msg)) return 'Kodas neteisingas arba nebegalioja. Paprašyk naujo.';
-  if (/signups not allowed|signup.*disabled/i.test(msg)) return 'Naujų paskyrų kūrimas išjungtas. Naudok jau užregistruotą el. paštą.';
+  if (/invalid login credentials/i.test(msg)) return 'Neteisingas el. paštas arba slaptažodis.';
+  if (/email not confirmed/i.test(msg))
+    return 'Vartotojas nepatvirtintas. Supabase: Authentication → Users → sukurk vartotoją su „Auto Confirm User“.';
   if (/rate limit|too many/i.test(msg) || err.status === 429) return 'Per daug bandymų. Palauk kelias minutes ir bandyk vėl.';
   if (/invalid api key|no api key|jwt/i.test(msg)) return 'Neteisingas Supabase raktas. Patikrink jį nustatymuose.';
   return msg;
