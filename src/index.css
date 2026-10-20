@@ -1,0 +1,92 @@
+@import 'tailwindcss';
+
+:root {
+  color-scheme: light dark;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  overscroll-behavior-y: none;
+}
+
+input,
+select,
+textarea {
+  font-size: 16px; /* neleidžia iOS priartinti lauko */
+}
+
+/* Įslinkimas keičiant dieną / savaitę / mėnesį */
+@keyframes slide-from-right {
+  from {
+    transform: translateX(32px);
+    opacity: 0;
+  }
+}
+@keyframes slide-from-left {
+  from {
+    transform: translateX(-32px);
+    opacity: 0;
+  }
+}
+@keyframes toast-in {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+}
+.slide-from-right {
+  animation: slide-from-right 180ms ease-out;
+}
+.slide-from-left {
+  animation: slide-from-left 180ms ease-out;
+}
+.toast-in {
+  animation: toast-in 180ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .slide-from-right,
+  .slide-from-left,
+  .toast-in {
+    animation: none;
+  }
+}
+
+/* Ilgas paspaudimas ant bloko neturi rodyti iOS meniu ar žymėti teksto */
+.no-callout {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@utility field {
+  @apply w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-base dark:border-slate-700 dark:bg-slate-900;
+}
+
+@utility btn {
+  @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-4 font-medium active:scale-[0.98] disabled:opacity-50;
+}
+@utility btn-primary {
+  @apply btn bg-teal-700 text-white dark:bg-teal-600;
+}
+@utility btn-secondary {
+  @apply btn bg-slate-200 text-slate-900 dark:bg-slate-800 dark:text-slate-100;
+}
+@utility btn-danger {
+  @apply btn bg-red-600 text-white;
+}
+@utility icon-btn {
+  @apply inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-2xl active:bg-slate-200 dark:active:bg-slate-800;
+}
+@utility card {
+  @apply rounded-2xl bg-white p-4 shadow-sm dark:bg-slate-900;
+}
