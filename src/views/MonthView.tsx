@@ -2,7 +2,7 @@ import type { Entry, EntryType } from '../types';
 import { TYPE_LABELS } from '../types';
 import { addDays, addMonths, daysInMonth, MONTHS, parseDate, startOfMonth, WEEKDAYS_SHORT, weekdayIndex } from '../lib/dates';
 import { haptic, useSlideClass, useSwipe } from '../lib/hooks';
-import { ViewHeader } from '../components/ui';
+import { PillButton, ViewHeader } from '../components/ui';
 import { DOT_CLASSES, TYPE_ORDER } from '../components/typeStyles';
 
 interface Props {
@@ -39,19 +39,14 @@ export function MonthView({ month, setMonth, entries, today, onOpenDay }: Props)
   return (
     <div {...swipe} className="min-h-[70vh]">
       <ViewHeader
-        title={`${MONTHS[dt.getUTCMonth()]} ${dt.getUTCFullYear()}`}
+        eyebrow={`${dt.getUTCFullYear()} m.`}
+        title={MONTHS[dt.getUTCMonth()]}
         onPrev={prev}
         onNext={next}
-        right={
-          !today.startsWith(first.slice(0, 7)) && (
-            <button type="button" className="btn-secondary min-h-10 px-3 text-sm" onClick={() => setMonth(startOfMonth(today))}>
-              Šiandien
-            </button>
-          )
-        }
+        right={!today.startsWith(first.slice(0, 7)) && <PillButton onClick={() => setMonth(startOfMonth(today))}>Šiandien</PillButton>}
       />
-      <div key={first} className={`px-2 pt-2 ${slide}`}>
-        <div className="grid grid-cols-7 text-center text-xs font-medium text-slate-500">
+      <div key={first} className={`px-3 pt-2 ${slide}`}>
+        <div className="grid grid-cols-7 text-center text-[11px] font-semibold text-neutral-400">
           {WEEKDAYS_SHORT.map((d) => (
             <div key={d} className="py-1">
               {d}
@@ -68,17 +63,20 @@ export function MonthView({ month, setMonth, entries, today, onOpenDay }: Props)
                   haptic(8);
                   onOpenDay(d);
                 }}
-                className={`flex aspect-square flex-col items-center justify-start rounded-xl pt-1.5 active:bg-slate-200 dark:active:bg-slate-800 ${
-                  d === today ? 'bg-teal-700 text-white' : weekdayIndex(d) > 4 ? 'text-slate-400' : ''
+                className={`flex aspect-square flex-col items-center justify-start rounded-2xl pt-1 active:bg-neutral-100 dark:active:bg-neutral-900 ${
+                  weekdayIndex(d) > 4 ? 'text-neutral-400' : ''
                 }`}
               >
-                <span className="text-base font-semibold tabular-nums">{Number(d.slice(8))}</span>
-                <span className="mt-1 flex gap-0.5">
+                <span
+                  className={`flex h-9 w-9 items-center justify-center rounded-full text-[15px] font-bold tabular-nums ${
+                    d === today ? 'bg-accent-500 text-white shadow-sm shadow-accent-500/40' : ''
+                  }`}
+                >
+                  {Number(d.slice(8))}
+                </span>
+                <span className="mt-0.5 flex gap-0.5">
                   {TYPE_ORDER.filter((t) => byDate.get(d)?.has(t)).map((t) => (
-                    <span
-                      key={t}
-                      className={`h-2 w-2 rounded-full ${DOT_CLASSES[t]} ${d === today ? 'ring-1 ring-white' : ''}`}
-                    />
+                    <span key={t} className={`h-1.5 w-1.5 rounded-full ${DOT_CLASSES[t]}`} />
                   ))}
                 </span>
               </button>
@@ -87,10 +85,13 @@ export function MonthView({ month, setMonth, entries, today, onOpenDay }: Props)
             ),
           )}
         </div>
-        <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm text-slate-600 dark:text-slate-300">
+        <div className="mt-5 flex flex-wrap justify-center gap-1.5">
           {TYPE_ORDER.map((t) => (
-            <span key={t} className="flex items-center gap-1.5">
-              <span className={`h-2.5 w-2.5 rounded-full ${DOT_CLASSES[t]}`} />
+            <span
+              key={t}
+              className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-semibold text-neutral-600 dark:bg-neutral-900 dark:text-neutral-300"
+            >
+              <span className={`h-2 w-2 rounded-full ${DOT_CLASSES[t]}`} />
               {TYPE_LABELS[t]}
             </span>
           ))}

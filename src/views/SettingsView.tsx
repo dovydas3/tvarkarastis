@@ -28,13 +28,13 @@ export function SettingsView({ settings, updateSettings, entryCount, onExport, o
     <div>
       <ViewHeader title="Nustatymai" />
       <div className="space-y-4 p-3">
-        {message && <div className="card border-l-4 border-teal-600 text-sm">{message}</div>}
+        {message && <div className="card border-l-4 border-accent-600 text-sm">{message}</div>}
 
         <SyncSection />
 
         <section className="card space-y-3">
           <h2 className="font-semibold">Atsarginė kopija</h2>
-          <p className="text-sm text-slate-500">Įrašų įrenginyje: {entryCount}. JSON failas – atsarginė kopija, nepriklausoma nuo sinchronizacijos.</p>
+          <p className="text-sm text-neutral-500">Įrašų įrenginyje: {entryCount}. JSON failas – atsarginė kopija, nepriklausoma nuo sinchronizacijos.</p>
           <button type="button" className="btn-primary w-full" onClick={onExport}>
             Eksportuoti į JSON
           </button>
@@ -64,11 +64,11 @@ export function SettingsView({ settings, updateSettings, entryCount, onExport, o
             <label className="flex min-h-10 items-center justify-between">
               <span>
                 <span className="block font-semibold">Vibracija</span>
-                <span className="text-sm text-slate-500">Lengvas atsakas paspaudus ir išsaugojus</span>
+                <span className="text-sm text-neutral-500">Lengvas atsakas paspaudus ir išsaugojus</span>
               </span>
               <input
                 type="checkbox"
-                className="h-6 w-6 accent-teal-700"
+                className="h-6 w-6 accent-accent-700"
                 checked={settings.haptics}
                 onChange={(e) => updateSettings({ haptics: e.target.checked })}
               />
@@ -79,7 +79,7 @@ export function SettingsView({ settings, updateSettings, entryCount, onExport, o
         <section className="card space-y-3">
           <h2 className="font-semibold">Priminimai</h2>
           {!notifSupported ? (
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-neutral-500">
               Ši naršyklė pranešimų nepalaiko.{' '}
               {!standalone && 'iPhone pranešimai veikia tik įdiegus programėlę į pradžios ekraną.'}
             </p>
@@ -89,7 +89,7 @@ export function SettingsView({ settings, updateSettings, entryCount, onExport, o
                 <span>Priminti prieš įvykį</span>
                 <input
                   type="checkbox"
-                  className="h-6 w-6 accent-teal-700"
+                  className="h-6 w-6 accent-accent-700"
                   checked={settings.notifications}
                   onChange={async (e) => {
                     if (e.target.checked && !(await requestNotificationPermission())) {
@@ -114,7 +114,7 @@ export function SettingsView({ settings, updateSettings, entryCount, onExport, o
                   ))}
                 </select>
               </label>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-neutral-500">
                 Be serverio priminimai veikia tik kol programėlė atidaryta arba neseniai naudota (fone). Uždarius jos – priminimų
                 nebus.
               </p>
@@ -124,7 +124,7 @@ export function SettingsView({ settings, updateSettings, entryCount, onExport, o
 
         <section className="card space-y-3">
           <h2 className="font-semibold">Pradinis grafikas</h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-neutral-500">
             Ištrina visus įrašus (ir tavo pridėtus) ir įkelia praktikos grafiką iš naujo. Prieš tai verta eksportuoti kopiją.
           </p>
           <button type="button" className="btn-danger w-full" onClick={() => setConfirmReset(true)}>
@@ -132,7 +132,7 @@ export function SettingsView({ settings, updateSettings, entryCount, onExport, o
           </button>
         </section>
 
-        <section className="card space-y-1 text-sm text-slate-500">
+        <section className="card space-y-1 text-sm text-neutral-500">
           <div>Praktikos vadovas: {PRACTICE_SUPERVISOR}</div>
           <div>Laiko zona: Europe/Vilnius</div>
           <div>{standalone ? 'Veikia kaip įdiegta programėlė ✓' : 'Įdiek: „Bendrinti“ → „Pridėti prie pradžios ekrano“.'}</div>

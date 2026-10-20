@@ -179,6 +179,15 @@ export function dragTimes(e: Pick<Entry, 'start' | 'end'>, mode: DragMode, delta
 /** Savaitės stulpelyje rodomas pavadinimas: paties įvestas trumpinys arba sugeneruotas. */
 export const displayShort = (e: Pick<Entry, 'title' | 'short'>) => e.short?.trim() || shortTitle(e.title);
 
+/** Ar įrašas pažymėtas atliktu (laiko juostos varnelė). */
+export const isChecked = (e: Entry) => (e.type === 'practice' ? e.status === 'done' : Boolean(e.done));
+
+/** Varnelės perjungimas: praktikai – „įvyko“ ↔ „auto“, kitiems – done. */
+export function toggleChecked(e: Entry): Entry {
+  if (e.type === 'practice') return { ...e, status: e.status === 'done' ? 'auto' : 'done' };
+  return { ...e, done: !e.done || undefined };
+}
+
 /** Praktikos bloko įskaitomos valandos. */
 export function countedHours(e: Entry): number {
   if (e.status === 'missed') return e.actualHours ?? 0;

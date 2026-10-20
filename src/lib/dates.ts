@@ -132,6 +132,14 @@ export function formatHours(h: number): string {
   return r.toLocaleString('lt-LT', { maximumFractionDigits: 2 });
 }
 
+/** Trukmė: „45 min.“, „2 val.“, „1 val. 30 min.“ */
+export function formatDuration(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (!h) return `${m} min.`;
+  return m ? `${h} val. ${m} min.` : `${h} val.`;
+}
+
 /** „po 45 min.“, „po 2 val. 5 min.“, „po 3 d.“ */
 export function formatIn(minutes: number): string {
   if (minutes < 1) return 'dabar';

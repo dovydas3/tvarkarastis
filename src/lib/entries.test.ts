@@ -5,7 +5,9 @@ import {
   displayShort,
   dragTimes,
   findConflicts,
+  isChecked,
   layoutDay,
+  toggleChecked,
   noteDetails,
   practiceTotals,
   shortTitle,
@@ -113,6 +115,18 @@ describe('tempimas', () => {
   it('savas trumpinys turi pirmenybę prieš sugeneruotą', () => {
     expect(displayShort({ title: 'Kompiuterių tinklai ir internetinės technologijos', short: 'KT' })).toBe('KT');
     expect(displayShort({ title: 'Kompiuterių tinklai ir internetinės technologijos', short: ' ' })).toBe('KTIT');
+  });
+});
+
+describe('varnelė', () => {
+  it('praktikai perjungia „įvyko“ ↔ „auto“, kitiems – done', () => {
+    const p: Entry = { id: 'p', title: 'Praktika', type: 'practice', date: '2026-11-10', start: '08:00', end: '10:30', status: 'auto' };
+    expect(isChecked(p)).toBe(false);
+    expect(toggleChecked(p).status).toBe('done');
+    expect(toggleChecked(toggleChecked(p)).status).toBe('auto');
+    const l: Entry = { ...p, id: 'l', type: 'lecture', status: undefined };
+    expect(isChecked(toggleChecked(l))).toBe(true);
+    expect(toggleChecked(toggleChecked(l)).done).toBeUndefined();
   });
 });
 

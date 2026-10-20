@@ -20,6 +20,8 @@ export interface Entry {
   /** Serijos pabaiga (imtinai), YYYY-MM-DD */
   repeatUntil?: string;
   status?: PracticeStatus;
+  /** Pažymėta kaip atlikta (ne praktikos įrašams; praktikai naudojamas status). */
+  done?: boolean;
   /** Faktinės valandos, jei skiriasi nuo suplanuotų. */
   actualHours?: number;
   source?: 'seed' | 'user';
@@ -33,7 +35,6 @@ export interface Entry {
 
 export interface Settings {
   showWeekend: boolean;
-  weekDays: 3 | 5;
   notifications: boolean;
   notifyMinutes: number;
   /** Lengva vibracija paspaudus (veikia Android; iOS naršyklės to neleidžia). */
@@ -42,7 +43,6 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = {
   showWeekend: false,
-  weekDays: 5,
   notifications: false,
   notifyMinutes: 15,
   haptics: true,

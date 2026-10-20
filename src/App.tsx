@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Entry, Settings } from './types';
 import { DEFAULT_SETTINGS } from './types';
 import * as db from './lib/db';
-import { applyToSeries, createEntries, newId, sortEntries, type EntryDraft } from './lib/entries';
+import { applyToSeries, createEntries, newId, sortEntries, toggleChecked, type EntryDraft } from './lib/entries';
 import { fromMinutes, startOfMonth, toMinutes } from './lib/dates';
 import { haptic, setHapticsEnabled, useNow } from './lib/hooks';
 import { downloadBackup, makeBackup, type Backup } from './lib/backup';
@@ -138,6 +138,13 @@ export default function App() {
     void save({ ...entry, start, end }, 'one');
   };
 
+  /** Laiko juostos varnelė: iškart parodoma, įrašoma fone. */
+  const toggleDone = (entry: Entry) => {
+    const next = toggleChecked(entry);
+    setEntries((prev) => prev && prev.map((e) => (e.id === entry.id ? next : e)));
+    void db.putEntries([next]);
+  };
+
   const quickUpdate = async (entry: Entry) => {
     await db.putEntries([entry]);
     await reload();
@@ -162,7 +169,7 @@ export default function App() {
   };
 
   if (!entries) {
-    return <div className="flex min-h-dvh items-center justify-center text-slate-500">Įkeliama…</div>;
+    return <div className="flex min-h-dvh items-center justify-center text-neutral-500">Įkeliama…</div>;
   }
 
   const select = (e: Entry) => setEditor({ entry: e });
@@ -180,6 +187,7 @@ export default function App() {
             onSelect={select}
             onCreate={openNew}
             onMove={move}
+            onToggle={toggleDone}
           />
         )}
         {tab === 'week' && (
@@ -234,13 +242,13 @@ export default function App() {
             haptic(10);
             openNew();
           }}
-          className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 z-40 flex h-16 w-16 items-center justify-center rounded-2xl bg-teal-700 text-white shadow-lg shadow-teal-900/30 transition active:scale-95 dark:bg-teal-600"
+          className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-5 z-40 flex h-[60px] w-[60px] items-center justify-center rounded-full bg-accent-500 text-white shadow-xl shadow-accent-500/40 transition active:scale-90"
         >
           <Icon name="plus" className="h-8 w-8" strokeWidth={2.5} />
         </button>
       )}
 
-      <nav className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
+      <nav className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-neutral-100 bg-white/90 backdrop-blur-xl dark:border-neutral-900 dark:bg-neutral-950/90">
         <div className="mx-auto flex max-w-3xl">
           {TABS.map((t) => (
             <button
@@ -249,12 +257,12 @@ export default function App() {
               onClick={() => selectTab(t.id)}
               aria-current={tab === t.id ? 'page' : undefined}
               className={`flex min-h-16 flex-1 flex-col items-center justify-center gap-1 text-[11px] ${
-                tab === t.id ? 'font-semibold text-teal-700 dark:text-teal-400' : 'text-slate-500'
+                tab === t.id ? 'font-bold text-accent-500' : 'font-medium text-neutral-400'
               }`}
             >
               <span
                 className={`relative flex h-8 w-14 items-center justify-center rounded-full transition-colors ${
-                  tab === t.id ? 'bg-teal-600/15 dark:bg-teal-400/15' : ''
+                  tab === t.id ? 'bg-accent-500/10' : ''
                 }`}
               >
                 <Icon name={t.icon} className="h-5 w-5" />

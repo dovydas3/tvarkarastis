@@ -2,29 +2,27 @@
 import sharp from 'sharp';
 import { writeFile } from 'node:fs/promises';
 
+// Juodas fonas, baltos didelės raidės dviem eilutėmis: „KIRK“ / „ME“.
 const glyph = (scale) => {
-  // Kalendoriaus lapelis su laikrodžiu, centruotas 512x512 drobėje.
   const s = scale;
   const o = (512 - 512 * s) / 2;
+  const text = (y, word) =>
+    `<text x="256" y="${y}" text-anchor="middle" fill="#ffffff" font-family="'Arial Black', 'Segoe UI Black', Impact, Arial, sans-serif" font-weight="900" font-size="168" letter-spacing="2">${word}</text>`;
   return `<g transform="translate(${o} ${o}) scale(${s})">
-    <rect x="96" y="120" width="320" height="300" rx="40" fill="#ffffff"/>
-    <rect x="96" y="120" width="320" height="86" rx="40" fill="#f59e0b"/>
-    <rect x="96" y="166" width="320" height="40" fill="#f59e0b"/>
-    <rect x="162" y="88" width="28" height="70" rx="14" fill="#ffffff"/>
-    <rect x="322" y="88" width="28" height="70" rx="14" fill="#ffffff"/>
-    <circle cx="256" cy="310" r="78" fill="none" stroke="#0f766e" stroke-width="22"/>
-    <path d="M256 268 V312 L288 334" fill="none" stroke="#0f766e" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+    ${text(242, 'KIRK')}
+    ${text(410, 'ME')}
   </g>`;
 };
 
 const svg = ({ rounded, scale }) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" ${rounded ? 'rx="112"' : ''} fill="#0f766e"/>
+  <rect width="512" height="512" ${rounded ? 'rx="112"' : ''} fill="#000000"/>
   ${glyph(scale)}
 </svg>`;
 
 const standard = svg({ rounded: true, scale: 1 });
 const full = svg({ rounded: false, scale: 1 });
-const maskable = svg({ rounded: false, scale: 0.72 });
+// Android „maskable“ ikona apkerpama apskritimu – tekstas sumažintas į saugią zoną.
+const maskable = svg({ rounded: false, scale: 0.74 });
 
 await writeFile('public/icon.svg', standard);
 await sharp(Buffer.from(standard)).resize(192, 192).png().toFile('public/pwa-192.png');

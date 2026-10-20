@@ -30,7 +30,7 @@ function StatusLine({ status }: { status: SyncStatus }) {
   const map: Record<string, { dot: string; text: string }> = {
     idle: { dot: 'bg-emerald-500', text: status.lastSync ? `Sinchronizuota ${ago(status.lastSync, now)}` : 'Prisijungta' },
     syncing: { dot: 'bg-sky-500 animate-pulse', text: 'Sinchronizuojama…' },
-    offline: { dot: 'bg-slate-400', text: 'Nėra interneto – pakeitimai bus išsiųsti vėliau' },
+    offline: { dot: 'bg-neutral-400', text: 'Nėra interneto – pakeitimai bus išsiųsti vėliau' },
     error: { dot: 'bg-red-500', text: status.error ?? 'Klaida' },
   };
   const s = map[status.state];
@@ -38,7 +38,7 @@ function StatusLine({ status }: { status: SyncStatus }) {
   return (
     <div className="flex items-start gap-2 text-sm">
       <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${s.dot}`} />
-      <span className={status.state === 'error' ? 'text-red-600 dark:text-red-400' : 'text-slate-600 dark:text-slate-300'}>{s.text}</span>
+      <span className={status.state === 'error' ? 'text-red-600 dark:text-red-400' : 'text-neutral-600 dark:text-neutral-300'}>{s.text}</span>
     </div>
   );
 }
@@ -99,7 +99,7 @@ export function SyncSection() {
 
       {status.state === 'unconfigured' && (
         <>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-neutral-500">
             Kad duomenys sutaptų telefone ir kompiuteryje, reikia nemokamo Supabase projekto. Įvesk jo adresą (Project URL) ir
             „anon“ / „publishable“ raktą:
           </p>
@@ -109,7 +109,7 @@ export function SyncSection() {
 
       {status.state === 'signed-out' && (
         <>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-neutral-500">
             Prisijunk tuo pačiu el. paštu ir slaptažodžiu visuose įrenginiuose. Vartotoją sukuri Supabase skydelyje: Authentication → Users → Add user.
           </p>
           <form
@@ -167,7 +167,7 @@ export function SyncSection() {
               Atsijungti
             </button>
           </div>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-neutral-500">
             Pakeitimai išsiunčiami automatiškai po kelių sekundžių, o kitų įrenginių pakeitimai parsiunčiami atidarius programėlę ir
             kas minutę. Be interneto viskas veikia kaip anksčiau.
           </p>
@@ -177,9 +177,9 @@ export function SyncSection() {
       {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
       {status.state !== 'unconfigured' && (
-        <div className="border-t border-slate-200 pt-2 dark:border-slate-800">
+        <div className="border-t border-neutral-200 pt-2 dark:border-neutral-800">
           {!showConfig ? (
-            <button type="button" className="text-sm text-slate-500 underline" onClick={() => setShowConfig(true)}>
+            <button type="button" className="text-sm text-neutral-500 underline" onClick={() => setShowConfig(true)}>
               {status.configSource === 'env' ? 'Naudoti kitą Supabase projektą' : 'Keisti Supabase projektą'}
             </button>
           ) : (
