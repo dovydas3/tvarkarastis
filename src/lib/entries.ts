@@ -1,5 +1,5 @@
 import type { Entry } from '../types';
-import { addDays, diffDays, durationHours, nowInVilnius, toMinutes } from './dates';
+import { addDays, diffDays, durationHours, nowInVilnius, toMinutes, weekdayIndex } from './dates';
 
 export const newId = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -16,16 +16,30 @@ export function weeklyDates(from: string, until: string): string[] {
   return out;
 }
 
+/**
+ * Pasikartojimo datos nuo `from` iki `until` imtinai: pasirinktomis savaitės dienomis
+ * (0 = pirmadienis … 6 = sekmadienis), o jei dienos nenurodytos – kas savaitę ta pačia diena.
+ */
+export function repeatDates(from: string, until: string, days?: number[]): string[] {
+  if (!days?.length) return weeklyDates(from, until);
+  const set = new Set(days);
+  const out: string[] = [];
+  for (let d = from; d <= until; d = addDays(d, 1)) if (set.has(weekdayIndex(d))) out.push(d);
+  return out;
+}
+
 export type EntryDraft = Omit<Entry, 'id'> & { id?: string };
 
 /** Naujas įrašas arba savaitinė serija. */
 export function createEntries(draft: EntryDraft): Entry[] {
   const { id: _ignored, ...base } = draft;
   if (!base.repeatUntil || base.repeatUntil <= base.date) {
-    return [{ ...base, repeatUntil: undefined, seriesId: undefined, id: newId(), source: 'user' }];
+    return [{ ...base, repeatUntil: undefined, repeatDays: undefined, seriesId: undefined, id: newId(), source: 'user' }];
   }
   const seriesId = newId();
-  return weeklyDates(base.date, base.repeatUntil).map((date) => ({
+  const dates = repeatDates(base.date, base.repeatUntil, base.repeatDays);
+  // Jei pradžios diena nepažymėta – serija vis tiek prasideda nuo pirmos tinkamos dienos.
+  return (dates.length ? dates : [base.date]).map((date) => ({
     ...base,
     date,
     seriesId,
@@ -45,7 +59,9 @@ export interface SeriesChange {
  * Esami nariai (su jų praktikos būsena) išlaikomi, kai data sutampa.
  */
 export function applyToSeries(series: Entry[], original: Entry, draft: EntryDraft): SeriesChange {
-  const shift = diffDays(draft.date, original.date);
+  const days = draft.repeatDays?.length ? draft.repeatDays : undefined;
+  // Su pasirinktomis dienomis datos imamos iš dienų rinkinio, ne perstumiamos.
+  const shift = days ? 0 : diffDays(draft.date, original.date);
   const sorted = [...series].sort(sortEntries);
   const firstDate = addDays(sorted[0].date, shift);
   const oldUntil = original.repeatUntil ?? sorted[sorted.length - 1].date;
@@ -56,15 +72,17 @@ export function applyToSeries(series: Entry[], original: Entry, draft: EntryDraf
   const shared = {
     title: draft.title,
     short: draft.short,
+    icon: draft.icon,
     type: draft.type,
     start: draft.start,
     end: draft.end,
     note: draft.note,
     repeatUntil: until,
+    repeatDays: days,
   };
   const put: Entry[] = [];
   const keep = new Set<string>();
-  for (const date of weeklyDates(firstDate, until)) {
+  for (const date of repeatDates(firstDate, until, days)) {
     const existing = byDate.get(date);
     if (existing) {
       keep.add(existing.id);

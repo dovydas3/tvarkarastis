@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import type { Entry, EntryType, PracticeStatus } from '../types';
 import { TYPE_LABELS } from '../types';
 import { addDays, formatDuration, formatLongDay, formatShort, toMinutes, WEEKDAYS_SHORT, weekdayIndex } from '../lib/dates';
-import { findConflicts, shortTitle, weeklyDates, type EntryDraft } from '../lib/entries';
+import { findConflicts, repeatDates, shortTitle, type EntryDraft } from '../lib/entries';
 import { haptic } from '../lib/hooks';
 import { Dialog, Segmented, Switch, TimeSelect } from './ui';
 import { Icon, type IconName } from './Icon';
@@ -47,6 +47,8 @@ export function EntrySheet({ entry, defaults, entries, onSave, onDelete, onClose
   const [note, setNote] = useState(init.note ?? '');
   const [repeat, setRepeat] = useState(Boolean(init.repeatUntil));
   const [until, setUntil] = useState(init.repeatUntil ?? (init.date ? addDays(init.date, 28) : ''));
+  // Pasikartojimo dienos (0 = Pr … 6 = Sk); senoms serijoms – pradžios diena.
+  const [days, setDays] = useState<number[]>(init.repeatDays?.length ? init.repeatDays : init.date ? [weekdayIndex(init.date)] : []);
   const [status, setStatus] = useState<PracticeStatus>(init.status ?? 'auto');
   const [actual, setActual] = useState(init.actualHours?.toString() ?? '');
   const [ask, setAsk] = useState<null | 'save' | 'delete'>(null);
@@ -58,7 +60,7 @@ export function EntrySheet({ entry, defaults, entries, onSave, onDelete, onClose
 
   const inSeries = Boolean(entry?.seriesId);
   const duration = toMinutes(end) - toMinutes(start);
-  const valid = date && duration > 0 && (!repeat || until >= date);
+  const valid = date && duration > 0 && (!repeat || (until >= date && days.length > 0));
 
   const draft: EntryDraft = {
     id: entry?.id,
@@ -71,6 +73,7 @@ export function EntrySheet({ entry, defaults, entries, onSave, onDelete, onClose
     end,
     note: note.trim() || undefined,
     repeatUntil: repeat ? until : undefined,
+    repeatDays: repeat && days.length ? [...days].sort((a, b) => a - b) : undefined,
     seriesId: entry?.seriesId,
     status: type === 'practice' ? status : undefined,
     actualHours: type === 'practice' && actual !== '' ? Math.max(0, Number(actual.replace(',', '.'))) : undefined,
@@ -81,12 +84,12 @@ export function EntrySheet({ entry, defaults, entries, onSave, onDelete, onClose
   // Konfliktai rodomi tiesiogiai pildant formą; išsaugoti vis tiek galima.
   const conflicts = useMemo(() => {
     if (!valid) return [];
-    const dates = repeat && !inSeries ? weeklyDates(date, until) : [date];
+    const dates = repeat && !inSeries ? repeatDates(date, until, days) : [date];
     const others = entries.filter((e) => e.id !== entry?.id && (!inSeries || e.seriesId !== entry?.seriesId));
     const candidates = dates.map((d, i) => ({ ...draft, id: `__new${i}`, date: d }) as Entry);
     return findConflicts(candidates, others);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [valid, date, start, end, repeat, until, entries, entry?.id]);
+  }, [valid, date, start, end, repeat, until, days, entries, entry?.id]);
 
   const submit = () => {
     if (!valid) return;
@@ -214,9 +217,50 @@ export function EntrySheet({ entry, defaults, entries, onSave, onDelete, onClose
 
           {/* Kartojimas */}
           <Group>
-            <Row icon="repeat" label="Kas savaitę">
-              <Switch checked={repeat} onChange={setRepeat} label="Kartoti kas savaitę" />
+            <Row icon="repeat" label="Kartoti">
+              <Switch
+                checked={repeat}
+                onChange={(v) => {
+                  setRepeat(v);
+                  if (v && !days.length && date) setDays([weekdayIndex(date)]);
+                }}
+                label="Kartoti"
+              />
             </Row>
+            {repeat && (
+              <div className="px-4 py-3">
+                <div className="mb-2 flex items-center justify-between text-xs text-neutral-500">
+                  <span>Kuriomis dienomis?</span>
+                  <span className="flex gap-3 font-semibold">
+                    <button type="button" onClick={() => setDays([0, 1, 2, 3, 4])}>Darbo d.</button>
+                    <button type="button" onClick={() => setDays([0, 1, 2, 3, 4, 5, 6])}>Kasdien</button>
+                  </span>
+                </div>
+                <div className="grid grid-cols-7 gap-1.5">
+                  {WEEKDAYS_SHORT.map((label, i) => {
+                    const on = days.includes(i);
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        aria-pressed={on}
+                        aria-label={`Kartoti: ${label}`}
+                        onClick={() => {
+                          haptic(8);
+                          setDays((d) => (on ? d.filter((x) => x !== i) : [...d, i]));
+                        }}
+                        className={`h-10 rounded-full text-sm font-bold transition-colors ${
+                          on ? 'bg-accent-500 text-white shadow-sm' : 'bg-white text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {!days.length && <p className="mt-2 text-xs text-red-500">Pažymėk bent vieną dieną.</p>}
+              </div>
+            )}
             {repeat && (
               <Row icon="month" label="Iki">
                 <input

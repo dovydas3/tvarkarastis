@@ -10,6 +10,7 @@ import {
   toggleChecked,
   noteDetails,
   practiceTotals,
+  repeatDates,
   shortTitle,
 } from './entries';
 import { nowInVilnius, vilniusToEpoch } from './dates';
@@ -51,6 +52,31 @@ describe('pasikartojimas', () => {
     const { put, remove } = applyToSeries(s, s[0], { ...s[0], repeatUntil: '2026-11-24' });
     expect(put.map((e) => e.date)).toEqual(['2026-11-03', '2026-11-10', '2026-11-17', '2026-11-24']);
     expect(remove).toEqual([]);
+  });
+});
+
+describe('pasikartojimas pasirinktomis dienomis', () => {
+  it('Pr, Tr, Pn iki datos', () => {
+    // 2026-11-02 – pirmadienis
+    expect(repeatDates('2026-11-02', '2026-11-13', [0, 2, 4])).toEqual([
+      '2026-11-02', '2026-11-04', '2026-11-06', '2026-11-09', '2026-11-11', '2026-11-13',
+    ]);
+    // be dienų – kas savaitę ta pačia diena (kaip anksčiau)
+    expect(repeatDates('2026-11-03', '2026-11-17')).toEqual(['2026-11-03', '2026-11-10', '2026-11-17']);
+  });
+
+  it('serija sukuriama tik pažymėtomis dienomis, net jei pradžios diena nepažymėta', () => {
+    const s = createEntries({ ...base, date: '2026-11-03', repeatUntil: '2026-11-12', repeatDays: [0, 3] });
+    expect(s.map((e) => e.date)).toEqual(['2026-11-05', '2026-11-09', '2026-11-12']);
+    expect(s.every((e) => e.repeatDays?.join() === '0,3')).toBe(true);
+  });
+
+  it('„visus“: pakeitus dienas, serija perdaroma, sutampančios dienos išlaikomos', () => {
+    const s = createEntries({ ...base, date: '2026-11-02', repeatUntil: '2026-11-13', repeatDays: [0, 2] });
+    const { put, remove } = applyToSeries(s, s[0], { ...s[0], repeatDays: [0, 4] });
+    expect(put.map((e) => e.date)).toEqual(['2026-11-02', '2026-11-06', '2026-11-09', '2026-11-13']);
+    expect(put[0].id).toBe(s[0].id);
+    expect(remove).toHaveLength(2); // abu trečiadieniai
   });
 });
 

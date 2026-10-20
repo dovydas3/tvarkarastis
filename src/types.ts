@@ -23,6 +23,8 @@ export interface Entry {
   seriesId?: string;
   /** Serijos pabaiga (imtinai), YYYY-MM-DD */
   repeatUntil?: string;
+  /** Pasikartojimo savaitės dienos (0 = pirmadienis … 6 = sekmadienis); nėra – kas savaitę ta pačia diena */
+  repeatDays?: number[];
   status?: PracticeStatus;
   /** Pažymėta kaip atlikta (ne praktikos įrašams; praktikai naudojamas status). */
   done?: boolean;

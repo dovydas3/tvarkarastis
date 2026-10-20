@@ -102,7 +102,7 @@ export default function App() {
       await db.putEntries(createEntries(draft));
     } else if (original.seriesId && scope === 'one') {
       // „Tik šį“ – įrašas atjungiamas nuo serijos.
-      await db.putEntries([{ ...original, ...draft, id: original.id, seriesId: undefined, repeatUntil: undefined }]);
+      await db.putEntries([{ ...original, ...draft, id: original.id, seriesId: undefined, repeatUntil: undefined, repeatDays: undefined }]);
     } else if (original.seriesId || (draft.repeatUntil && draft.repeatUntil > draft.date)) {
       // „Visus“ arba pavienio įrašo pavertimas serija.
       const seriesId = original.seriesId ?? newId();
@@ -112,7 +112,7 @@ export default function App() {
       await db.deleteEntries(remove);
       await db.putEntries(put);
     } else {
-      await db.putEntries([{ ...original, ...draft, id: original.id, repeatUntil: undefined }]);
+      await db.putEntries([{ ...original, ...draft, id: original.id, repeatUntil: undefined, repeatDays: undefined }]);
     }
     // Trumpinys priklauso modulio pavadinimui: pakeitus jį, atnaujinami visi to paties pavadinimo įrašai.
     if (draft.short !== original?.short) {
