@@ -68,8 +68,12 @@ export interface Settings {
   showWeekend: boolean;
   notifications: boolean;
   notifyMinutes: number;
+  /** Šis įrenginys gauna push priminimus iš serverio */
+  push: boolean;
   /** Lengva vibracija paspaudus (veikia Android; iOS naršyklės to neleidžia). */
   haptics: boolean;
+  /** Vardas ir pavardė praktikos ataskaitoje */
+  studentName: string;
   /** Kalendoriaus skiltyje rodomas vaizdas */
   calendarView: 'week' | 'month';
 }
@@ -78,8 +82,10 @@ export const DEFAULT_SETTINGS: Settings = {
   showWeekend: false,
   notifications: false,
   notifyMinutes: 15,
+  push: false,
   haptics: true,
   calendarView: 'week',
+  studentName: '',
 };
 
 export const TYPE_LABELS: Record<EntryType, string> = {

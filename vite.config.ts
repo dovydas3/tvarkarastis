@@ -37,6 +37,8 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
         navigateFallback: 'index.html',
+        // Push priminimų apdorojimas (public/push-sw.js)
+        importScripts: ['push-sw.js'],
       },
     }),
   ],

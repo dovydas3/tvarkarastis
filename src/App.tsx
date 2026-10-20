@@ -13,6 +13,7 @@ import { WeekView } from './views/WeekView';
 import { MonthView } from './views/MonthView';
 import { TodoView } from './views/TodoView';
 import { PracticeView } from './views/PracticeView';
+import { PracticeReport } from './views/PracticeReport';
 import { SettingsView } from './views/SettingsView';
 import { EntrySheet, type Scope } from './components/EntrySheet';
 import { TodoSheet } from './components/TodoSheet';
@@ -52,6 +53,7 @@ export default function App() {
   const [todoEditor, setTodoEditor] = useState<TodoEditor | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
+  const [reportOpen, setReportOpen] = useState(false);
   const [pendingMove, setPendingMove] = useState<{ entry: Entry; start: string; end: string } | null>(null);
 
   useEffect(() => setHapticsEnabled(settings.haptics), [settings.haptics]);
@@ -226,6 +228,18 @@ export default function App() {
     });
   };
 
+  /** Trūkstamos praktikos dienos (Praktikos ekranas). */
+  const addPractice = async (blocks: { date: string; start: string; end: string }[]) => {
+    await db.putEntries(
+      blocks.flatMap((b) =>
+        createEntries({ title: 'Praktika', type: 'practice', status: 'auto', source: 'user', date: b.date, start: b.start, end: b.end }),
+      ),
+    );
+    haptic([10, 40, 10]);
+    await reload();
+    showToast({ message: blocks.length > 2 ? 'Praktikos dienos pridėtos' : 'Praktikos diena pridėta' });
+  };
+
   // ---- navigacija ----
 
   const selectTab = (t: Tab) => {
@@ -244,6 +258,19 @@ export default function App() {
 
   if (!entries) {
     return <div className="flex min-h-dvh items-center justify-center text-neutral-500">Įkeliama…</div>;
+  }
+
+  // Ataskaita rodoma viena (kad spausdinant būtų tik ji).
+  if (reportOpen) {
+    return (
+      <PracticeReport
+        entries={entries}
+        now={now}
+        studentName={settings.studentName}
+        onStudentName={(studentName) => updateSettings({ studentName })}
+        onClose={() => setReportOpen(false)}
+      />
+    );
   }
 
   const select = (e: Entry) => setEditor({ entry: e });
@@ -318,7 +345,19 @@ export default function App() {
             }}
           />
         )}
-        {tab === 'practice' && <PracticeView entries={entries} now={now} onUpdate={quickUpdate} onSelect={select} />}
+        {tab === 'practice' && (
+          <PracticeView
+            entries={entries}
+            now={now}
+            onUpdate={quickUpdate}
+            onSelect={select}
+            onAddPractice={(b) => void addPractice(b)}
+            onOpenReport={() => {
+              setReportOpen(true);
+              window.scrollTo({ top: 0 });
+            }}
+          />
+        )}
         {tab === 'settings' && (
           <SettingsView
             settings={settings}

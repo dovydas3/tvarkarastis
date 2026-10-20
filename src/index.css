@@ -87,6 +87,21 @@ textarea {
   }
 }
 
+/* Praktikos ataskaitos spausdinimas / PDF */
+@page {
+  size: A4;
+  margin: 14mm;
+}
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    color: #000;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
 /* Ilgas paspaudimas ant bloko neturi rodyti iOS meniu ar žymėti teksto */
 .no-callout {
   -webkit-touch-callout: none;

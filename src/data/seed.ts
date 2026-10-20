@@ -182,6 +182,34 @@ export function generateSeedEntries(weeks: PracticeWeek[] = PRACTICE_WEEKS): Ent
   return entries;
 }
 
+export interface FillSuggestion {
+  weekStart: string;
+  date: string;
+  blocks: Block[];
+  hours: number;
+}
+
+/**
+ * Pasiūlymas, kaip užpildyti trūkstamas savaitės valandas: pirma laisva darbo diena
+ * (be jokių įrašų, ne šventė), pirmenybė penktadieniui. Blokai kaip pilnos praktikos dienos:
+ * 08:00–12:00 ir 13:00–17:00 (jei trūksta mažiau – sutrumpinama).
+ */
+export function suggestFill(weekStart: string, missingHours: number, entries: Entry[]): FillSuggestion | null {
+  if (missingHours <= 0) return null;
+  const order = [4, 0, 3, 2, 1]; // Pn, Pr, Kt, Tr, An
+  const busy = new Set(entries.filter((e) => !(e as { deleted?: boolean }).deleted).map((e) => e.date));
+  for (const i of order) {
+    const date = addDays(weekStart, i);
+    if (HOLIDAYS.includes(date) || busy.has(date)) continue;
+    const minutes = Math.round(Math.min(missingHours, 8) * 60);
+    const fmt = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+    const blocks: Block[] =
+      minutes <= 240 ? [['08:00', fmt(8 * 60 + minutes)]] : [['08:00', '12:00'], ['13:00', fmt(13 * 60 + minutes - 240)]];
+    return { weekStart, date, blocks, hours: minutes / 60 };
+  }
+  return null;
+}
+
 export interface WeekDiscrepancy {
   start: string;
   requiredHours: number;

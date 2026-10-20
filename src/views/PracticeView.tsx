@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import type { Entry, PracticeStatus } from '../types';
-import { addDays, durationHours, formatHours, formatShort, WEEKDAYS_SHORT, weekdayIndex } from '../lib/dates';
+import { addDays, durationHours, formatDayMonth, formatHours, formatShort, WEEKDAYS_SHORT, weekdayIndex } from '../lib/dates';
 import { countedHours, isCompleted, practiceTotals } from '../lib/entries';
 import {
   findWeekDiscrepancies,
@@ -9,22 +9,38 @@ import {
   PRACTICE_SUPERVISOR,
   PRACTICE_TARGET_HOURS,
   PRACTICE_WEEKS,
+  suggestFill,
+  type FillSuggestion,
 } from '../data/seed';
-import { Segmented, ViewHeader } from '../components/ui';
+import { Dialog, Segmented, ViewHeader } from '../components/ui';
+import { Icon } from '../components/Icon';
 
 interface Props {
   entries: Entry[];
   now: { date: string; minutes: number };
   onUpdate: (e: Entry) => void;
   onSelect: (e: Entry) => void;
+  /** Sukurti praktikos blokus (trūkstamoms valandoms) */
+  onAddPractice: (blocks: { date: string; start: string; end: string }[]) => void;
+  onOpenReport: () => void;
 }
 
-export function PracticeView({ entries, now, onUpdate, onSelect }: Props) {
+export function PracticeView({ entries, now, onUpdate, onSelect, onAddPractice, onOpenReport }: Props) {
   const practice = entries.filter((e) => e.type === 'practice');
   const totals = practiceTotals(practice, now);
   const discrepancies = new Map(findWeekDiscrepancies(practice).map((d) => [d.start, d]));
   const [open, setOpen] = useState<string | null>(null);
   const outside = practice.filter((e) => e.date < PRACTICE_START || e.date > PRACTICE_END);
+  // Pasiūlymai trūkstamoms valandoms (laisva darbo diena, pirmenybė penktadieniui)
+  const suggestions = new Map(
+    [...discrepancies.values()]
+      .map((d) => suggestFill(d.start, d.missingHours, entries))
+      .filter((x): x is FillSuggestion => !!x)
+      .map((x) => [x.weekStart, x]),
+  );
+  const [confirm, setConfirm] = useState<FillSuggestion[] | null>(null);
+  const toBlocks = (list: FillSuggestion[]) => list.flatMap((x) => x.blocks.map(([start, end]) => ({ date: x.date, start, end })));
+  const dayLabel = (x: FillSuggestion) => `${WEEKDAYS_SHORT[weekdayIndex(x.date)]}, ${formatDayMonth(x.date)}`;
 
   return (
     <div>
@@ -52,6 +68,16 @@ export function PracticeView({ entries, now, onUpdate, onSelect }: Props) {
             )}
           </div>
           <div className="mt-1 text-xs text-neutral-500">Vadovas: {PRACTICE_SUPERVISOR}</div>
+          {suggestions.size > 0 && (
+            <button type="button" className="btn-primary mt-3 w-full" onClick={() => setConfirm([...suggestions.values()])}>
+              <Icon name="plus" className="h-5 w-5" strokeWidth={2.5} />
+              Užpildyti trūkstamas dienas ({suggestions.size})
+            </button>
+          )}
+          <button type="button" className="btn-secondary mt-2 w-full" onClick={onOpenReport}>
+            <Icon name="note" className="h-5 w-5" />
+            Praktikos ataskaita (PDF / CSV)
+          </button>
         </div>
 
         <div className="card p-0">
@@ -107,6 +133,18 @@ export function PracticeView({ entries, now, onUpdate, onSelect }: Props) {
                   <span className="w-12 text-right tabular-nums text-neutral-500">{formatHours(w.requiredHours)}</span>
                   <span className="w-12 text-right tabular-nums">{formatHours(done)}</span>
                 </button>
+                {suggestions.get(w.start) && (
+                  <div className="px-4 pb-2">
+                    <button
+                      type="button"
+                      onClick={() => setConfirm([suggestions.get(w.start)!])}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-full bg-emerald-50 px-3 text-xs font-semibold text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-200"
+                    >
+                      <Icon name="plus" className="h-4 w-4" strokeWidth={2.6} />
+                      Pridėti {dayLabel(suggestions.get(w.start)!)} ({formatHours(suggestions.get(w.start)!.hours)} val.)
+                    </button>
+                  </div>
+                )}
                 {isOpen && (
                   <div className="space-y-2 bg-neutral-50 px-3 py-3 dark:bg-neutral-950/50">
                     {blocks.length === 0 && <div className="text-sm text-neutral-500">Šią savaitę praktikos blokų nėra.</div>}
@@ -125,6 +163,32 @@ export function PracticeView({ entries, now, onUpdate, onSelect }: Props) {
           )}
         </div>
       </div>
+
+      {confirm && (
+        <Dialog
+          title={confirm.length === 1 ? 'Pridėti praktikos dieną?' : `Pridėti ${confirm.length} praktikos dienas?`}
+          message={
+            <ul className="space-y-1 text-sm">
+              {confirm.map((x) => (
+                <li key={x.date}>
+                  <b>{dayLabel(x)}</b>: {x.blocks.map(([a, b]) => `${a}–${b}`).join(', ')} ({formatHours(x.hours)} val.)
+                </li>
+              ))}
+            </ul>
+          }
+          actions={[
+            {
+              label: 'Pridėti',
+              kind: 'primary',
+              onClick: () => {
+                onAddPractice(toBlocks(confirm));
+                setConfirm(null);
+              },
+            },
+            { label: 'Atšaukti', onClick: () => setConfirm(null) },
+          ]}
+        />
+      )}
     </div>
   );
 }

@@ -57,7 +57,13 @@ export function onRemoteData(fn: () => void): () => void {
 // ---- Supabase klientas ---------------------------------------------------
 
 let client: SupabaseClient | null = null;
+let currentConfig: SyncConfig | null = null;
 let started = false;
+
+/** Prisijungęs Supabase klientas ir jo nustatymai (push priminimams), arba null. */
+export function getSupabase(): { client: SupabaseClient; config: SyncConfig } | null {
+  return client && currentConfig && status.email ? { client, config: currentConfig } : null;
+}
 
 async function getConfig(): Promise<{ config: SyncConfig; source: 'env' | 'device' } | null> {
   const device = await db.getMeta<SyncConfig>('syncConfig');
@@ -68,6 +74,7 @@ async function getConfig(): Promise<{ config: SyncConfig; source: 'env' | 'devic
 
 async function connect() {
   const found = await getConfig();
+  currentConfig = found?.config ?? null;
   if (!found) {
     client = null;
     setStatus({ state: 'unconfigured', email: undefined, error: undefined, configSource: undefined });

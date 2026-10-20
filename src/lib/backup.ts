@@ -58,9 +58,12 @@ export function parseBackup(text: string): Backup {
 
 export async function downloadBackup(backup: Backup): Promise<void> {
   const name = `tvarkarastis-${backup.exportedAt.slice(0, 10)}.json`;
-  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-  // Telefone (ypač iOS „įdiegtoje“ programėlėje) patogiau per dalinimosi meniu.
-  const file = new File([blob], name, { type: 'application/json' });
+  await saveFile(new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }), name);
+}
+
+/** Išsaugo failą: telefone per dalinimosi meniu (patogiau iOS įdiegtoje programėlėje), kompiuteryje – atsisiunčia. */
+export async function saveFile(blob: Blob, name: string): Promise<void> {
+  const file = new File([blob], name, { type: blob.type });
   if (navigator.canShare?.({ files: [file] }) && matchMedia('(pointer: coarse)').matches) {
     try {
       await navigator.share({ files: [file], title: name });

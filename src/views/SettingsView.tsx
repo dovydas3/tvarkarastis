@@ -1,10 +1,10 @@
 import { useRef, useState } from 'react';
 import type { Settings } from '../types';
 import { ViewHeader, Dialog } from '../components/ui';
-import { notificationsSupported, requestNotificationPermission } from '../lib/notify';
 import { parseBackup, type Backup } from '../lib/backup';
 import { hapticsSupported } from '../lib/hooks';
 import { SyncSection } from '../components/SyncSection';
+import { RemindersSection } from '../components/RemindersSection';
 import { PRACTICE_SUPERVISOR } from '../data/seed';
 
 interface Props {
@@ -22,7 +22,6 @@ export function SettingsView({ settings, updateSettings, entryCount, onExport, o
   const [confirmReset, setConfirmReset] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const standalone = matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone;
-  const notifSupported = notificationsSupported();
 
   return (
     <div>
@@ -76,51 +75,7 @@ export function SettingsView({ settings, updateSettings, entryCount, onExport, o
           </section>
         )}
 
-        <section className="card space-y-3">
-          <h2 className="font-semibold">Priminimai</h2>
-          {!notifSupported ? (
-            <p className="text-sm text-neutral-500">
-              Ši naršyklė pranešimų nepalaiko.{' '}
-              {!standalone && 'iPhone pranešimai veikia tik įdiegus programėlę į pradžios ekraną.'}
-            </p>
-          ) : (
-            <>
-              <label className="flex min-h-10 items-center justify-between">
-                <span>Priminti prieš įvykį</span>
-                <input
-                  type="checkbox"
-                  className="h-6 w-6 accent-accent-700"
-                  checked={settings.notifications}
-                  onChange={async (e) => {
-                    if (e.target.checked && !(await requestNotificationPermission())) {
-                      setMessage('Pranešimai neleisti. Leisk juos naršyklės / telefono nustatymuose.');
-                      return;
-                    }
-                    updateSettings({ notifications: e.target.checked });
-                  }}
-                />
-              </label>
-              <label className="flex items-center justify-between gap-3">
-                <span>Prieš kiek minučių</span>
-                <select
-                  className="field w-28"
-                  value={settings.notifyMinutes}
-                  onChange={(e) => updateSettings({ notifyMinutes: Number(e.target.value) })}
-                >
-                  {[5, 10, 15, 30, 60].map((m) => (
-                    <option key={m} value={m}>
-                      {m} min.
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <p className="text-xs text-neutral-500">
-                Be serverio priminimai veikia tik kol programėlė atidaryta arba neseniai naudota (fone). Uždarius jos – priminimų
-                nebus.
-              </p>
-            </>
-          )}
-        </section>
+        <RemindersSection settings={settings} updateSettings={updateSettings} />
 
         <section className="card space-y-3">
           <h2 className="font-semibold">Pradinis grafikas</h2>

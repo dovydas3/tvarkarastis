@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findWeekDiscrepancies, generateSeedEntries, PRACTICE_TARGET_HOURS, PRACTICE_WEEKS } from './seed';
+import { findWeekDiscrepancies, generateSeedEntries, PRACTICE_TARGET_HOURS, PRACTICE_WEEKS, suggestFill } from './seed';
 import { addDays, durationHours, weekdayIndex } from '../lib/dates';
 
 // Praktikos blokai, ranka perrašyti iš grafiko lentelės (Pr, An, Tr, Kt, Pn).
@@ -145,6 +145,28 @@ describe('pradinis grafikas (tęsinys)', () => {
       type: 'practice' as const,
     }));
     expect(findWeekDiscrepancies([...entries, ...extra]).map((x) => x.start)).toEqual(['2026-11-02']);
+  });
+
+  it('trūkstamoms valandoms siūlo laisvą penktadienį 08–12 ir 13–17 (Vėlinių pirmadienis praleidžiamas)', () => {
+    const s = findWeekDiscrepancies(entries).map((d) => suggestFill(d.start, d.missingHours, entries));
+    expect(s.map((x) => x?.date)).toEqual(['2026-11-06', '2026-11-20', '2026-12-04', '2026-12-18']);
+    for (const x of s) {
+      expect(x?.blocks).toEqual([
+        ['08:00', '12:00'],
+        ['13:00', '17:00'],
+      ]);
+      expect(x?.hours).toBe(8);
+    }
+  });
+
+  it('jei trūksta mažiau – blokas sutrumpinamas; užimtos dienos praleidžiamos', () => {
+    expect(suggestFill('2026-11-16', 3, entries)?.blocks).toEqual([['08:00', '11:00']]);
+    expect(suggestFill('2026-11-16', 6.5, entries)?.blocks).toEqual([
+      ['08:00', '12:00'],
+      ['13:00', '15:30'],
+    ]);
+    // visa savaitė užimta (A šablonas) – pasiūlymo nėra
+    expect(suggestFill('2026-10-26', 8, entries)).toBeNull();
   });
 
   it('id yra unikalūs ir deterministiniai', () => {

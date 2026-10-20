@@ -160,6 +160,25 @@ async function stampForSync(): Promise<void> {
   await tx.done;
 }
 
+/**
+ * Serverio priminimams reikia viso tvarkaraščio debesyje, o nepakeisti pradiniai įrašai
+ * (updatedAt = 0) į jį nesiunčiami. Pažymim juos išsiuntimui su updatedAt = 1 –
+ * bet kuris tikras pakeitimas kitame įrenginyje (ms laikas) vis tiek laimės.
+ */
+export async function markSeedsForUpload(): Promise<number> {
+  const tx = (await db()).transaction('entries', 'readwrite');
+  let n = 0;
+  for (const e of await tx.store.getAll()) {
+    if (!e.deleted && !e.updatedAt) {
+      await tx.store.put({ ...e, updatedAt: 1, dirty: 1 });
+      n++;
+    }
+  }
+  await tx.done;
+  if (n) changed();
+  return n;
+}
+
 export async function resetToSeed(): Promise<void> {
   await replaceAllEntries(generateSeedEntries());
   const d = await db();
